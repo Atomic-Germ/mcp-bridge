@@ -1,0 +1,31 @@
+{
+  "name": "mcp-bridge",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "demo": "node dist/demo-client.js",
+    "dev:demo": "ts-node src/demo-client.ts",
+    "test": "vitest run --reporter default",
+    "test:watch": "vitest",
+    "ci": "npm i && npm build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.0",
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "packageManager": "10.9.0",
+  "keywords": ["mcp", "orchestration", "insight"],
+  "author": "",
+  "license": "MIT"
+}
