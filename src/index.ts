@@ -494,10 +494,17 @@ async function main() {
   await storage.initialize();
 
   // Create MCP server
-  const server = new Server({
-    name: "mcp-bridge",
-    version: "1.0.0",
-  });
+  const server = new Server(
+    {
+      name: "mcp-bridge",
+      version: "1.0.0",
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
 
   // Register handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

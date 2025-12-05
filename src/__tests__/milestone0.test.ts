@@ -23,6 +23,11 @@ describe("Milestone 0: Foundation", () => {
   beforeAll(async () => {
     storage = new StorageManager(testConfig);
     await storage.initialize();
+    // Clean up from previous test runs
+    const allSessions = await storage.loadAllSessions();
+    for (const sessionId of Object.keys(allSessions)) {
+      await storage.deleteSession(sessionId);
+    }
   });
 
   describe("Storage Manager", () => {
