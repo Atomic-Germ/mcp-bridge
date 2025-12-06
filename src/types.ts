@@ -86,7 +86,12 @@ export interface SwitchSuggestion {
   suggestedMode: "diverge" | "converge";
   confidence: number; // 0-1
   reason: string;
-  heuristicTriggered: string;
+  heuristicScores: {
+    saturation: { triggered: boolean; confidence: number };
+    pause: { triggered: boolean; confidence: number };
+    noveltyDrop: { triggered: boolean; confidence: number };
+    critiqueFreshness: { triggered: boolean; confidence: number };
+  };
 }
 
 // ============================================================================

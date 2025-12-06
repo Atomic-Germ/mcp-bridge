@@ -35,6 +35,7 @@ import {
 } from "./types.js";
 import { StorageManager } from "./utils/storage.js";
 import { extractInsights, extractFeedback, scoreRelevance } from "./insights.js";
+import { suggestModeSwitch } from "./modeSwitch.js";
 
 // ============================================================================
 // Global State
@@ -332,19 +333,30 @@ async function handleSuggestModeSwitch(): Promise<SuggestModeSwitchResponse> {
   }
 
   const session = await storage.loadSession(currentSessionId);
-  if (!session || session.traces.length < 3) {
+  if (!session || session.traces.length < 2) {
     return {
       suggestion: null,
       message:
-        "Need at least 3 traces before suggesting mode switch. Keep meditating/consulting!",
+        "Need at least 2 traces before suggesting mode switch. Keep building history!",
     };
   }
 
-  // TODO: Implement heuristics in Milestone 2
-  // For now, return null (no suggestion yet)
+  // Run all 4 heuristics and get suggestion
+  const suggestion = suggestModeSwitch(
+    session,
+    config.ux.minConfidenceToSurface // Use configured threshold
+  );
+
+  if (!suggestion) {
+    return {
+      suggestion: null,
+      message: "No strong mode-switch signal yet. Continue your flow!",
+    };
+  }
+
   return {
-    suggestion: null,
-    message: "Heuristics not yet implemented. Check back in M2!",
+    suggestion,
+    message: `Suggestion: Switch to ${suggestion.suggestedMode} mode. Confidence: ${(suggestion.confidence * 100).toFixed(0)}%. Reason: ${suggestion.reason}`,
   };
 }
 
