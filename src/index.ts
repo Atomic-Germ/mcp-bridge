@@ -34,6 +34,7 @@ import {
   InvalidInputError,
 } from "./types.js";
 import { StorageManager } from "./utils/storage.js";
+import { extractInsights, extractFeedback, scoreRelevance } from "./insights.js";
 
 // ============================================================================
 // Global State
@@ -233,9 +234,14 @@ async function handleLogMeditation(
   const traceId = randomUUID();
   const now = Date.now();
 
-  // TODO: Extract insights in Milestone 1
-  // For now, stub basic insights
-  const basicNovelty = Math.random() * 0.5 + 0.5; // 0.5-1.0 random
+  // Load session to get history for novelty computation
+  const session = await storage.loadSession(currentSessionId);
+  if (!session) {
+    throw new InvalidInputError(`Session not found: ${currentSessionId}`);
+  }
+
+  // Extract insights from the meditation text
+  const insights = extractInsights(req.emergentSentence, session);
 
   const trace: MeditationTrace = {
     id: traceId,
@@ -247,14 +253,9 @@ async function handleLogMeditation(
       seed: req.seed,
       emergentSentence: req.emergentSentence,
     },
-    insights: {
-      extractedPatterns: req.contextWords, // Stub: will be enhanced in M1
-      novelty: basicNovelty,
-      semanticClusters: [req.contextWords],
-      extractedAt: now,
-    },
+    insights,
     bridge: {
-      confidenceLevel: 0.8,
+      confidenceLevel: 0.9, // High confidence in extraction
     },
   };
 
@@ -262,8 +263,8 @@ async function handleLogMeditation(
 
   return {
     traceId,
-    insights: trace.insights!,
-    message: `Logged meditation trace ${traceId}. Concepts: ${req.contextWords.join(", ")}. Novelty: ${basicNovelty.toFixed(2)}`,
+    insights,
+    message: `Logged meditation trace ${traceId}. Concepts: ${insights.extractedPatterns.join(", ")}. Novelty: ${insights.novelty.toFixed(2)}.`,
   };
 }
 
@@ -281,9 +282,23 @@ async function handleLogConsult(
   const traceId = randomUUID();
   const now = Date.now();
 
-  // TODO: Extract feedback in Milestone 1
-  // For now, stub basic relevance
-  const basicRelevance = Math.random() * 0.4 + 0.6; // 0.6-1.0 random
+  // Extract feedback from the consult response
+  const extractedFeedback = extractFeedback(req.response);
+
+  // Try to score relevance if we have prior meditations
+  let relevanceScore = 0.5; // Default neutral
+  const session = await storage.loadSession(currentSessionId);
+  if (session && session.traces.length > 0) {
+    const lastMeditation = [...session.traces]
+      .reverse()
+      .find((t) => t.meditation);
+    if (lastMeditation?.insights) {
+      relevanceScore = scoreRelevance(
+        lastMeditation.insights.extractedPatterns,
+        req.response
+      );
+    }
+  }
 
   const trace: MeditationTrace = {
     id: traceId,
@@ -294,10 +309,10 @@ async function handleLogConsult(
       prompt: req.prompt,
       systemPrompt: req.systemPrompt,
       response: req.response,
-      relevance: basicRelevance,
+      relevance: relevanceScore,
     },
     bridge: {
-      confidenceLevel: 0.8,
+      confidenceLevel: 0.85,
     },
   };
 
@@ -305,9 +320,9 @@ async function handleLogConsult(
 
   return {
     traceId,
-    relevanceScore: basicRelevance,
-    extractedFeedback: [], // TODO: Extract in M1
-    message: `Logged consult trace ${traceId}. Model: ${req.model}. Relevance: ${basicRelevance.toFixed(2)}`,
+    relevanceScore,
+    extractedFeedback,
+    message: `Logged consult trace ${traceId}. Model: ${req.model}. Relevance: ${relevanceScore.toFixed(2)}. Feedback points: ${extractedFeedback.length}`,
   };
 }
 
