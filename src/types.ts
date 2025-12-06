@@ -156,7 +156,10 @@ export interface GetContextForConsultRequest {
 
 export interface GetContextForConsultResponse {
   systemPromptChunk: string;
+  userPromptChunk?: string;
   concepts: string[];
+  novelty?: number;
+  clusters?: string[][];
   message: string;
 }
 
@@ -169,6 +172,8 @@ export interface GetCritiqueForMeditationRequest {
 export interface GetCritiqueForMeditationResponse {
   contextWords: string[];
   extractedFeedback: string[];
+  provocativeQuestions?: string[];
+  userPromptChunk?: string;
   message: string;
 }
 

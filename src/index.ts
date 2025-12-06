@@ -36,6 +36,11 @@ import {
 import { StorageManager } from "./utils/storage.js";
 import { extractInsights, extractFeedback, scoreRelevance } from "./insights.js";
 import { suggestModeSwitch } from "./modeSwitch.js";
+import {
+  formatContextForConsult,
+  formatContextForMeditation,
+  buildConversationBridge,
+} from "./contextInjection.js";
 
 // ============================================================================
 // Global State
@@ -372,14 +377,33 @@ async function handleGetContextForConsult(
     throw new InvalidInputError(`Meditation trace not found: ${req.meditationTraceId}`);
   }
 
-  // TODO: Format context in Milestone 3
-  // For now, stub basic formatting
-  const systemPromptChunk = `Your meditation revealed these concepts: ${trace.insights.extractedPatterns.join(", ")}.\nPlease critique and evaluate these ideas.`;
+  // Load session to get history for context
+  const session = await storage.loadSession(currentSessionId);
+  if (!session) {
+    throw new InvalidInputError(`Session not found: ${currentSessionId}`);
+  }
+
+  // Calculate session statistics
+  const meditationTraces = session.traces.filter((t) => t.insights);
+  const avgNovelty =
+    meditationTraces.length > 0
+      ? meditationTraces.reduce((sum, t) => sum + (t.insights?.novelty || 0), 0) /
+        meditationTraces.length
+      : 0;
+
+  // Format rich context for consult
+  const context = formatContextForConsult(trace, {
+    count: meditationTraces.length,
+    avgNovelty,
+  });
 
   return {
-    systemPromptChunk,
-    concepts: trace.insights.extractedPatterns,
-    message: "Context formatted (basic version; enhanced in M3)",
+    systemPromptChunk: context.systemPrompt,
+    userPromptChunk: context.userPrompt,
+    concepts: context.concepts,
+    novelty: context.novelty,
+    clusters: context.clusters,
+    message: `Rich context for critique. Meditation novelty: ${(context.novelty * 100).toFixed(0)}%. Session avg: ${(avgNovelty * 100).toFixed(0)}%.`,
   };
 }
 
@@ -395,15 +419,15 @@ async function handleGetCritiqueForMeditation(
     throw new InvalidInputError(`Consult trace not found: ${req.consultTraceId}`);
   }
 
-  // TODO: Extract feedback in Milestone 3
-  // For now, stub basic extraction
-  const contextWords = ["feedback", "consider", "next"];
+  // Format critique context for next meditation
+  const context = formatContextForMeditation(trace);
 
   return {
-    contextWords,
-    extractedFeedback: [trace.critique.response.substring(0, 100)],
-    message:
-      "Critique formatted (basic version; enhanced in M3). Use contextWords for next meditation.",
+    contextWords: context.suggestedContextWords,
+    extractedFeedback: context.extractedFeedback,
+    provocativeQuestions: context.provocativeQuestions,
+    userPromptChunk: context.userPrompt,
+    message: `Feedback extracted. Suggested context: ${context.suggestedContextWords.join(", ")}. Feedback points: ${context.extractedFeedback.length}. Questions to explore: ${context.provocativeQuestions.length}.`,
   };
 }
 
