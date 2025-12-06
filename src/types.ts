@@ -129,11 +129,13 @@ export interface LogConsultRequest {
   prompt: string;
   response: string;
   systemPrompt?: string;
+  relevanceOverride?: number; // User can override computed relevance (0-1)
 }
 
 export interface LogConsultResponse {
   traceId: string;
   relevanceScore: number;
+  relevanceSource: "computed" | "user-override"; // Track source
   extractedFeedback: string[];
   message: string;
 }

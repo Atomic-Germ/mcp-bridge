@@ -152,3 +152,36 @@ describe("Milestone 0: Foundation", () => {
     });
   });
 });
+
+describe("Relevance Override Feature", () => {
+  it("should accept user relevance override in LogConsultRequest", () => {
+    const request = {
+      model: "test-model",
+      prompt: "test prompt",
+      response: "test response",
+      relevanceOverride: 0.95, // User says this is highly relevant
+    };
+    expect(request.relevanceOverride).toBe(0.95);
+  });
+
+  it("should validate override is between 0 and 1", () => {
+    const validOverrides = [0, 0.5, 0.95, 1.0];
+    const invalidOverrides = [-0.1, 1.5, 2.0];
+    
+    validOverrides.forEach((o) => {
+      expect(o >= 0 && o <= 1).toBe(true);
+    });
+    
+    invalidOverrides.forEach((o) => {
+      expect(o >= 0 && o <= 1).toBe(false);
+    });
+  });
+
+  it("should track relevance source (computed vs override)", () => {
+    const computed = { traceId: "1", relevanceScore: 0.45, relevanceSource: "computed" as const };
+    const override = { traceId: "2", relevanceScore: 0.95, relevanceSource: "user-override" as const };
+    
+    expect(computed.relevanceSource).toBe("computed");
+    expect(override.relevanceSource).toBe("user-override");
+  });
+});

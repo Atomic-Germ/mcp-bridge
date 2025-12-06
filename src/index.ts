@@ -96,7 +96,7 @@ function listTools(): Tool[] {
     {
       name: "bridge_log_consult",
       description:
-        "Log a consult (critique) output and extract actionable feedback",
+        "Log a consult (critique) output and extract actionable feedback. Optionally override the computed relevance score.",
       inputSchema: {
         type: "object",
         properties: {
@@ -115,6 +115,11 @@ function listTools(): Tool[] {
           systemPrompt: {
             type: "string",
             description: "Optional system prompt",
+          },
+          relevanceOverride: {
+            type: "number",
+            description:
+              "Optional: Override the computed relevance score (0-1). Use this if the bridge's NLP scoring disagrees with your intuition.",
           },
         },
         required: ["model", "prompt", "response"],
@@ -291,18 +296,30 @@ async function handleLogConsult(
   // Extract feedback from the consult response
   const extractedFeedback = extractFeedback(req.response);
 
-  // Try to score relevance if we have prior meditations
+  // Determine relevance score: use override if provided, otherwise compute
   let relevanceScore = 0.5; // Default neutral
-  const session = await storage.loadSession(currentSessionId);
-  if (session && session.traces.length > 0) {
-    const lastMeditation = [...session.traces]
-      .reverse()
-      .find((t) => t.meditation);
-    if (lastMeditation?.insights) {
-      relevanceScore = scoreRelevance(
-        lastMeditation.insights.extractedPatterns,
-        req.response
-      );
+  let relevanceSource: "computed" | "user-override" = "computed";
+
+  if (req.relevanceOverride !== undefined) {
+    // User override takes precedence
+    if (req.relevanceOverride < 0 || req.relevanceOverride > 1) {
+      throw new InvalidInputError("relevanceOverride must be between 0 and 1");
+    }
+    relevanceScore = req.relevanceOverride;
+    relevanceSource = "user-override";
+  } else {
+    // Try to score relevance based on prior meditations
+    const session = await storage.loadSession(currentSessionId);
+    if (session && session.traces.length > 0) {
+      const lastMeditation = [...session.traces]
+        .reverse()
+        .find((t) => t.meditation);
+      if (lastMeditation?.insights) {
+        relevanceScore = scoreRelevance(
+          lastMeditation.insights.extractedPatterns,
+          req.response
+        );
+      }
     }
   }
 
@@ -327,8 +344,9 @@ async function handleLogConsult(
   return {
     traceId,
     relevanceScore,
+    relevanceSource,
     extractedFeedback,
-    message: `Logged consult trace ${traceId}. Model: ${req.model}. Relevance: ${relevanceScore.toFixed(2)}. Feedback points: ${extractedFeedback.length}`,
+    message: `Logged consult trace ${traceId}. Relevance: ${relevanceScore.toFixed(2)} (${relevanceSource}). Feedback points: ${extractedFeedback.length}`,
   };
 }
 
