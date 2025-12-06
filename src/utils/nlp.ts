@@ -245,6 +245,15 @@ export function extractNounLikeConcepts(text: string): string[] {
       "this",
       "what",
       "which",
+      "where",
+      "when",
+      "through",
+      "into",
+      "without",
+      "without",
+      "becomes",
+      "descends",
+      "between",
     ]);
 
     if (commonFunctionWords.has(word)) return false;
@@ -254,6 +263,6 @@ export function extractNounLikeConcepts(text: string): string[] {
       word.endsWith(ending)
     );
 
-    return hasNounEnding || word.length >= 6;
+    return hasNounEnding || word.length >= 7; // Longer words more likely nouns
   });
 }
