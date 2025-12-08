@@ -230,6 +230,17 @@ export interface ModeSwitchSuggestion {
 export function suggestModeSwitch(
   memory: ContemplativeMemory,
   minConfidenceToSurface: number = 0.5,
+  heuristicsConfig: {
+    semanticSaturationThreshold: number;
+    pauseThresholdMs: number;
+    noveltyDropThreshold: number;
+    critiqueFreshnessThreshold: number;
+  } = {
+    semanticSaturationThreshold: 0.6,
+    pauseThresholdMs: 300000,
+    noveltyDropThreshold: 0.35,
+    critiqueFreshnessThreshold: 0.75,
+  },
   heuristicWeights: {
     saturation: number;
     pause: number;
@@ -247,10 +258,10 @@ export function suggestModeSwitch(
   }
 
   // Run all 4 heuristics
-  const saturation = semanticSaturationDetector(memory);
-  const pause = pauseDetectionHeuristic(memory);
-  const noveltyDrop = noveltyDropDetector(memory);
-  const critiqueFreshness = critiqueFreshnessDetector(memory);
+  const saturation = semanticSaturationDetector(memory, heuristicsConfig.semanticSaturationThreshold);
+  const pause = pauseDetectionHeuristic(memory, heuristicsConfig.pauseThresholdMs);
+  const noveltyDrop = noveltyDropDetector(memory, heuristicsConfig.noveltyDropThreshold);
+  const critiqueFreshness = critiqueFreshnessDetector(memory, heuristicsConfig.critiqueFreshnessThreshold);
 
   // Vote for diverge (meditation) vs converge (critique)
   let convergeScore = 0; // Vote for critique

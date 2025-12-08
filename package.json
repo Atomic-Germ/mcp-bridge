@@ -24,7 +24,6 @@
     "typescript": "^5.0.0",
     "vitest": "^1.0.0"
   },
-  "packageManager": "10.9.0",
   "keywords": ["mcp", "orchestration", "insight"],
   "author": "",
   "license": "MIT"

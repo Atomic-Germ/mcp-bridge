@@ -258,13 +258,13 @@ export const DEFAULT_CONFIG: BridgeConfig = {
   enableLogging: true,
   logPath: `${process.env.HOME}/.cache/mcp-bridge/bridge.log`,
   heuristics: {
-    semanticSaturationThreshold: 0.6,
-    pauseThresholdMs: 5000,
-    noveltyDropThreshold: 0.35,
-    critiqueFreshnessThreshold: 0.8,
+    semanticSaturationThreshold: 0.55,
+    pauseThresholdMs: 10000,
+    noveltyDropThreshold: 0.4,
+    critiqueFreshnessThreshold: 0.7,
   },
   ux: {
-    minConfidenceToSurface: 0.5,
-    minTimeBetweenSuggestionsMs: 300000,
+    minConfidenceToSurface: 0.4,
+    minTimeBetweenSuggestionsMs: 60000,
   },
 };

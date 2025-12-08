@@ -367,7 +367,8 @@ async function handleSuggestModeSwitch(): Promise<SuggestModeSwitchResponse> {
   // Run all 4 heuristics and get suggestion
   const suggestion = suggestModeSwitch(
     session,
-    config.ux.minConfidenceToSurface // Use configured threshold
+    config.ux.minConfidenceToSurface, // Use configured threshold
+    config.heuristics // Pass configured heuristics
   );
 
   if (!suggestion) {
