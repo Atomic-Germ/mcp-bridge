@@ -29,6 +29,8 @@ import {
   GetCritiqueForMeditationResponse,
   GetSessionTraceRequest,
   GetSessionTraceResponse,
+  WeaveSessionRequest,
+  WeaveSessionResponse,
   MeditationTrace,
   BridgeError,
   InvalidInputError,
@@ -36,6 +38,7 @@ import {
 import { StorageManager } from "./utils/storage.js";
 import { extractInsights, extractFeedback, scoreRelevance } from "./insights.js";
 import { suggestModeSwitch } from "./modeSwitch.js";
+import { DreamWeaver } from "./utils/dreamWeaver.js";
 import {
   formatContextForConsult,
   formatContextForMeditation,
@@ -187,6 +190,29 @@ function listTools(): Tool[] {
           limit: {
             type: "number",
             description: "Number of recent traces to return",
+          },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "bridge_weave_session",
+      description:
+        "Weave a narrative dream from the session's meditation traces, connecting insights based on adjacency.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          sessionId: {
+            type: "string",
+            description: "Optional session ID (uses current if not provided)",
+          },
+          length: {
+            type: "number",
+            description: "Approximate number of moments to weave",
+          },
+          seed: {
+            type: "string",
+            description: "Optional seed concept to start the dream",
           },
         },
         required: [],
@@ -474,6 +500,27 @@ async function handleGetSessionTrace(
   };
 }
 
+async function handleWeaveSession(
+  req: WeaveSessionRequest
+): Promise<WeaveSessionResponse> {
+  const sessionId = req.sessionId || currentSessionId;
+  if (!sessionId) {
+    throw new InvalidInputError("No session ID provided and no active session");
+  }
+
+  const session = await storage.loadSession(sessionId);
+  if (!session) {
+    throw new InvalidInputError(`Session not found: ${sessionId}`);
+  }
+
+  const dream = DreamWeaver.weave(session.traces, req.length, req.seed);
+
+  return {
+    dream,
+    message: "Session dream woven successfully.",
+  };
+}
+
 // ============================================================================
 // Call Tool Handler (MCP Dispatch)
 // ============================================================================
@@ -520,6 +567,10 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
 
       case "bridge_get_session_trace":
         result = await handleGetSessionTrace(request.arguments as unknown as GetSessionTraceRequest);
+        break;
+
+      case "bridge_weave_session":
+        result = await handleWeaveSession(request.arguments as unknown as WeaveSessionRequest);
         break;
 
       default:

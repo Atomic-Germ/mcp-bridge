@@ -192,6 +192,18 @@ export interface GetSessionTraceResponse {
   message: string;
 }
 
+// Tool 8: bridge_weave_session
+export interface WeaveSessionRequest {
+  sessionId?: string;
+  length?: number;
+  seed?: string;
+}
+
+export interface WeaveSessionResponse {
+  dream: string;
+  message: string;
+}
+
 // ============================================================================
 // Error Types
 // ============================================================================
