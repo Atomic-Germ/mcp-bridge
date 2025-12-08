@@ -1,4 +1,7 @@
 import { MeditationTrace } from "../types.js";
+import * as fs from "fs/promises";
+import * as path from "path";
+import { randomUUID } from "crypto";
 
 interface Granule {
   id: string;
@@ -7,12 +10,26 @@ interface Granule {
   originalTrace: MeditationTrace;
 }
 
+interface DreamJournalEntry {
+  id: string;
+  timestamp: string;
+  seed?: string;
+  length: number;
+  granules: {
+    id: string;
+    content: string;
+    keywords: string[];
+    traceId: string;
+  }[];
+  narrative: string;
+}
+
 export class DreamWeaver {
   /**
    * Weaves a narrative dream from a session's meditation traces.
    * Connects insights based on shared concepts (adjacency).
    */
-  static weave(traces: MeditationTrace[], length: number = 5, seed?: string): string {
+  static async weave(traces: MeditationTrace[], length: number = 5, seed?: string): Promise<string> {
     // 1. Convert Traces to Granules
     const granules: Granule[] = traces
       .filter(t => t.meditation && t.insights) // Only use meditation traces
@@ -67,7 +84,40 @@ export class DreamWeaver {
     }
 
     // 3. Format Output
-    return this.formatDream(dreamPath);
+    const narrative = this.formatDream(dreamPath);
+
+    // 4. Save to Journal
+    await this.saveToJournal(dreamPath, narrative, seed);
+
+    return narrative;
+  }
+
+  private static async saveToJournal(dreamPath: Granule[], narrative: string, seed?: string) {
+    const memoryDir = process.env.MEMORY_DIR || path.join(process.env.HOME || "/tmp", ".cache/mcp-bridge/dreams");
+    
+    try {
+      await fs.mkdir(memoryDir, { recursive: true });
+      
+      const entry: DreamJournalEntry = {
+        id: randomUUID(),
+        timestamp: new Date().toISOString(),
+        seed,
+        length: dreamPath.length,
+        granules: dreamPath.map(g => ({
+          id: g.id,
+          content: g.content,
+          keywords: Array.from(g.keywords),
+          traceId: g.originalTrace.id
+        })),
+        narrative
+      };
+
+      const filename = `dream-${entry.timestamp.replace(/[:.]/g, "-")}.json`;
+      await fs.writeFile(path.join(memoryDir, filename), JSON.stringify(entry, null, 2));
+      // Silent success - logging might clutter bridge output
+    } catch (error) {
+      console.error("Failed to save dream journal:", error);
+    }
   }
 
   private static findNextGranule(current: Granule, all: Granule[], visited: Set<string>): Granule | null {

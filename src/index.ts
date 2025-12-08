@@ -513,7 +513,7 @@ async function handleWeaveSession(
     throw new InvalidInputError(`Session not found: ${sessionId}`);
   }
 
-  const dream = DreamWeaver.weave(session.traces, req.length, req.seed);
+  const dream = await DreamWeaver.weave(session.traces, req.length, req.seed);
 
   return {
     dream,
