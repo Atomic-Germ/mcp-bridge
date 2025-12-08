@@ -2,7 +2,7 @@ name: Regression Test
 
 on:
   push:
-    branches: [ "main", "devel*" ]
+    branches: [ "m*", "o*" ]
   pull_request:
     branches: [ "main" ]
 
