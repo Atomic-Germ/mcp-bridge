@@ -204,6 +204,59 @@ export interface WeaveSessionResponse {
   message: string;
 }
 
+// Tool 9: bridge_compare_critique_models
+export interface CompareModelsCritiqueRequest {
+  meditationTraceId: string;   // ✅ Required: UUID of meditation trace
+  models?: string[];           // Optional: models to compare (default: auto-detect)
+  timeoutMs?: number;          // Optional: timeout per model (default: 120000)
+}
+
+export interface ModelCritique {
+  model: string;
+  response: string;
+  processingTime?: number;
+}
+
+export interface CritiqueComparison {
+  consensus: string[];         // Points all models agree on
+  divergent: string[];         // Points where models disagree
+  modelResponses: ModelCritique[];
+  agreementScore: number;      // 0-1: how much consensus
+}
+
+export interface CompareModelsCritiqueResponse {
+  traceId: string;
+  comparison: CritiqueComparison;
+  message: string;
+}
+
+// Tool 10: bridge_build_concept_memory
+export interface ConceptMemoryEntry {
+  concept: string;
+  firstSeen: number;           // Unix ms
+  lastSeen: number;            // Unix ms
+  sessions: string[];          // Session IDs where concept appeared
+  modelsTested: string[];      // Which models analyzed this
+  relatedConcepts: string[];   // Semantically related concepts
+  evolution: {
+    sessionSequence: string[];
+    insightProgression: string[];
+  };
+}
+
+export interface BuildConceptMemoryRequest {
+  concept: string;             // ✅ Required: concept to memorize
+  persistenceModel?: string;   // Optional: which model to use for persistence
+}
+
+export interface BuildConceptMemoryResponse {
+  concept: string;
+  entryId: string;
+  firstSessionId: string;
+  relatedConcepts: string[];
+  message: string;
+}
+
 // ============================================================================
 // Error Types
 // ============================================================================

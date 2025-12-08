@@ -31,6 +31,10 @@ import {
   GetSessionTraceResponse,
   WeaveSessionRequest,
   WeaveSessionResponse,
+  CompareModelsCritiqueRequest,
+  CompareModelsCritiqueResponse,
+  BuildConceptMemoryRequest,
+  BuildConceptMemoryResponse,
   MeditationTrace,
   BridgeError,
   InvalidInputError,
@@ -44,6 +48,8 @@ import {
   formatContextForMeditation,
   buildConversationBridge,
 } from "./contextInjection.js";
+import { compareOllamaModels, listOllamaModels, analyzeConsensus } from "./utils/ollamaConsultant.js";
+import { getConceptMemory } from "./utils/conceptMemory.js";
 
 // ============================================================================
 // Global State
@@ -216,6 +222,58 @@ function listTools(): Tool[] {
           },
         },
         required: [],
+      },
+    },
+    {
+      name: "bridge_compare_critique_models",
+      description:
+        "Get critiques from multiple Ollama models and analyze consensus/divergence",
+      inputSchema: {
+        type: "object",
+        properties: {
+          meditationTraceId: {
+            type: "string",
+            description: "UUID of the meditation trace to critique",
+          },
+          models: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional: models to compare (default: auto-detect available)",
+          },
+          timeoutMs: {
+            type: "number",
+            description: "Optional: timeout per model in milliseconds (default: 120000)",
+          },
+        },
+        required: ["meditationTraceId"],
+      },
+    },
+    {
+      name: "bridge_build_concept_memory",
+      description:
+        "Build persistent memory for a concept across sessions with evolution tracking",
+      inputSchema: {
+        type: "object",
+        properties: {
+          concept: {
+            type: "string",
+            description: "The concept to memorize",
+          },
+          sessionId: {
+            type: "string",
+            description: "Optional: current session ID for tracking",
+          },
+          insight: {
+            type: "string",
+            description: "Optional: the insight where concept appeared",
+          },
+          relatedConcepts: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional: related concepts to link",
+          },
+        },
+        required: ["concept"],
       },
     },
   ];
@@ -521,6 +579,135 @@ async function handleWeaveSession(
   };
 }
 
+async function handleCompareModelsCritique(
+  req: CompareModelsCritiqueRequest
+): Promise<CompareModelsCritiqueResponse> {
+  if (!currentSessionId) {
+    throw new InvalidInputError("No active session. Call bridge_start_session first.");
+  }
+
+  const trace = await storage.getTraceById(currentSessionId, req.meditationTraceId);
+  if (!trace || !trace.meditation) {
+    throw new InvalidInputError(`Meditation trace not found: ${req.meditationTraceId}`);
+  }
+
+  // Determine which models to use
+  let models = req.models;
+  if (!models || models.length === 0) {
+    // Auto-detect available models
+    const available = await listOllamaModels();
+    models = available.map((m) => m.name).slice(0, 3); // Use top 3
+
+    if (models.length === 0) {
+      throw new InvalidInputError(
+        "No Ollama models available and no models specified"
+      );
+    }
+  }
+
+  // Get context for critique from bridge
+  const contextRes = await handleGetContextForConsult({
+    meditationTraceId: req.meditationTraceId,
+  });
+
+  // Consult multiple models in parallel
+  const prompt = contextRes.userPromptChunk || contextRes.systemPromptChunk;
+  const { successes, failures } = await compareOllamaModels(
+    models,
+    prompt,
+    contextRes.systemPromptChunk,
+    req.timeoutMs || 120000
+  );
+
+  if (successes.length === 0) {
+    throw new InvalidInputError(
+      `All models failed: ${failures.map((f) => f.error).join("; ")}`
+    );
+  }
+
+  // Analyze consensus
+  const comparison = analyzeConsensus(successes);
+
+  // Add model responses to comparison
+  const fullComparison = {
+    ...comparison,
+    modelResponses: successes.map((s) => ({
+      model: s.model,
+      response: s.response,
+      processingTime: s.processingTime,
+    })),
+  };
+
+  // Log the comparison as a new trace
+  const traceId = randomUUID();
+  const now = Date.now();
+
+  const multiModelTrace: MeditationTrace = {
+    id: traceId,
+    timestamp: now,
+    mode: "converge",
+    critique: {
+      consultModel: `multi-model(${successes.map((s) => s.model).join(",")})`,
+      prompt,
+      response: successes.map((s) => `[${s.model}]: ${s.response}`).join("\n\n"),
+      relevance: (
+        successes.reduce((sum, s) => sum + (s.processingTime ? 1 : 0), 0) /
+        successes.length
+      ), // Simplified relevance
+    },
+    bridge: {
+      confidenceLevel: comparison.agreementScore,
+      reasonForSwitch: `Multi-model critique: ${successes.length} models analyzed`,
+    },
+  };
+
+  await storage.addTraceToSession(currentSessionId, multiModelTrace);
+
+  return {
+    traceId,
+    comparison: fullComparison,
+    message: `Got critiques from ${successes.length} models. Agreement score: ${(
+      fullComparison.agreementScore * 100
+    ).toFixed(0)}%.`,
+  };
+}
+
+async function handleBuildConceptMemory(
+  req: BuildConceptMemoryRequest
+): Promise<BuildConceptMemoryResponse> {
+  if (!currentSessionId) {
+    throw new InvalidInputError("No active session. Call bridge_start_session first.");
+  }
+
+  const conceptMemory = getConceptMemory();
+
+  // Record the concept
+  const record = conceptMemory.recordConcept(
+    req.concept,
+    currentSessionId,
+    (req as any).insight || req.concept,
+    (req as any).model
+  );
+
+  // Link related concepts if provided
+  if ((req as any).relatedConcepts) {
+    for (const related of (req as any).relatedConcepts) {
+      conceptMemory.linkConcepts(req.concept, related);
+    }
+  }
+
+  // Get related concepts
+  const related = conceptMemory.getRelated(req.concept);
+
+  return {
+    concept: req.concept,
+    entryId: record.id,
+    firstSessionId: record.sessionIds[0],
+    relatedConcepts: related.map((r) => r.concept),
+    message: `Concept "${req.concept}" recorded. ${related.length} related concepts found.`,
+  };
+}
+
 // ============================================================================
 // Call Tool Handler (MCP Dispatch)
 // ============================================================================
@@ -571,6 +758,18 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
 
       case "bridge_weave_session":
         result = await handleWeaveSession(request.arguments as unknown as WeaveSessionRequest);
+        break;
+
+      case "bridge_compare_critique_models":
+        result = await handleCompareModelsCritique(
+          request.arguments as unknown as CompareModelsCritiqueRequest
+        );
+        break;
+
+      case "bridge_build_concept_memory":
+        result = await handleBuildConceptMemory(
+          request.arguments as unknown as BuildConceptMemoryRequest
+        );
         break;
 
       default:
