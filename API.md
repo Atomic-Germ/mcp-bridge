@@ -275,6 +275,7 @@ Analyzes session traces and suggests whether to switch between diverge (creative
     strength: number;              // 0-1: 0=lean previous, 0.5=maintain, 1=lean current
     jaccard: number;               // similarity between last two concept sets
     proximity: number;             // activation strength inside the band
+    imbalance: number;             // normalized difference in unique concepts
     direction: "forward" | "backward" | "balanced";
     threshold: number;             // decision boundary used
     epsilon: number;               // activation band width
@@ -318,7 +319,7 @@ const response = await callTool({
 **Suggestion Logic:**
 - Runs all 4 heuristics
 - Returns highest-confidence trigger (if confidence >= configured threshold, default 0.4)
-- If the last two meditations are *near* the similarity threshold (Jaccard within ε), a graded asymmetry signal activates to gently lean the vote toward keeping divergence (forward) or switching to critique (backward). Strength remains neutral (0.5) outside the critical band.
+- If the last two meditations are near or above the similarity threshold (Jaccard within ε or exceeding the boundary), a graded asymmetry signal activates to gently lean the vote toward keeping divergence (forward) or switching to critique (backward). High-overlap cases (e.g., Jaccard ≈ 1) now produce a backward tilt even without unique-concept imbalance. Strength remains neutral (0.5) when inactive.
 - If multiple heuristics suggest same mode, confidence increases
 - Returns `null` if confidence below threshold
 

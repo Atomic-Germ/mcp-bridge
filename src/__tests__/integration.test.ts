@@ -190,6 +190,14 @@ describe("M4 Integration: Bridge with Creative + Consult", () => {
       }
     });
 
+    it("leans backward when overlap is maximal even without imbalance", () => {
+      const signal = computeGradedAsymmetry(["a", "b", "c"], ["a", "b", "c"]);
+      expect(signal.criticalBandActive).toBe(true);
+      expect(signal.direction).toBe("backward");
+      expect(signal.asymmetry).toBeGreaterThan(0);
+      expect(signal.strength).toBeLessThan(0.5);
+    });
+
     it("returns neutral asymmetry outside the critical band", () => {
       const signal = computeGradedAsymmetry(["a"], ["x", "y"]);
       expect(signal.criticalBandActive).toBe(false);

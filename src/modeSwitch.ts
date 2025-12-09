@@ -67,20 +67,39 @@ export function computeGradedAsymmetry(
   const onlyB = b.filter((x) => !a.includes(x)).length;
 
   const jaccard = union > 0 ? inter / union : 0;
-  const delta = Math.abs(jaccard - threshold);
-  const criticalBandActive = delta < epsilon;
-  const proximity = criticalBandActive ? 1 - delta / epsilon : 0;
+  const delta = jaccard - threshold;
+  const withinCriticalBand = Math.abs(delta) < epsilon;
+  const aboveThreshold = delta >= 0;
 
+  // Proximity now increases both inside the band and when overlap exceeds the threshold
+  const proximity = withinCriticalBand
+    ? 1 - Math.abs(delta) / epsilon
+    : aboveThreshold
+      ? Math.min(1, (jaccard - threshold) / Math.max(1e-6, 1 - threshold))
+      : 0;
+
+  // Track concept imbalance, but also allow similarity alone to bias the vote when overlap is very high.
   const imbalanceMagnitude = union > 0 ? Math.abs(onlyA - onlyB) / union : 0;
-  const directionSign = Math.sign(onlyB - onlyA); // +1 leans to current, -1 to previous
+  const imbalanceDirection = Math.sign(onlyB - onlyA); // +1 leans to current, -1 to previous
+
+  // If there is no imbalance (identical sets), fall back to similarity direction (above threshold → backward/critique).
+  const similarityDirection = delta > 0 ? -1 : delta < 0 ? 1 : 0;
+  const directionSign =
+    imbalanceMagnitude > 0 ? imbalanceDirection : similarityDirection;
+
   const direction: AsymmetrySignal["direction"] =
     directionSign > 0 ? "forward" : directionSign < 0 ? "backward" : "balanced";
 
-  const asymmetry = proximity * imbalanceMagnitude;
+  // Similarity bias ensures we still emit a tilt when overlap is very high but unique-count imbalance is zero.
+  const similarityBias = aboveThreshold ? proximity * 0.5 : 0;
+  const asymmetry = Math.min(1, (imbalanceMagnitude * proximity) + similarityBias);
+
   const strength = Math.max(
     0,
-    Math.min(1, 0.5 + directionSign * asymmetry * Math.pow(proximity, 2))
+    Math.min(1, 0.5 + directionSign * asymmetry)
   );
+
+  const criticalBandActive = withinCriticalBand || aboveThreshold;
 
   return {
     asymmetry,
