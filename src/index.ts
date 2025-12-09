@@ -404,6 +404,43 @@ function listTools(): Tool[] {
             type: "boolean",
             description: "Toggle antonym-based flips",
           },
+          state: {
+            type: "object",
+            description: "Optional heuristic state (novelty/saturation signals) to modulate inversion strength",
+            properties: {
+              mode: { type: "string", enum: ["NORMAL", "SOFT", "HARSH"] },
+              signals: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    novelty: { type: "number" },
+                    saturation: { type: "number" },
+                  },
+                  required: ["novelty", "saturation"],
+                },
+                description: "Recent novelty/saturation samples (last 5)",
+              },
+              recentBranches: {
+                type: "array",
+                items: { type: "string" },
+                description: "Identifiers of recently used perpendicular branches",
+              },
+              thresholds: {
+                type: "object",
+                properties: {
+                  noveltyHigh: { type: "number" },
+                  saturationHigh: { type: "number" },
+                  minAffinity: { type: "number" },
+                },
+              },
+              currentAffinity: { type: "number" },
+            },
+          },
+          useHeuristicGating: {
+            type: "boolean",
+            description: "Enable novelty/saturation gating (default true)",
+          },
         },
         required: ["contextWords"],
       },
@@ -1506,11 +1543,13 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
       primaryLabel: req.primaryLabel,
       perpendicularLabel: req.perpendicularLabel,
       useAntonymMap: req.useAntonymMap,
+      state: req.state,
+      useHeuristicGating: req.useHeuristicGating,
     });
 
     return {
       ...plan,
-      message: `Planned paired meditations with ${plan.primary.contextWords.length} primary terms and ${plan.perpendicular.contextWords.length} perpendicular terms.`,
+      message: `Planned paired meditations (mode=${plan.mode}) with ${plan.primary.contextWords.length} primary terms and ${plan.perpendicular.contextWords.length} perpendicular terms.`,
     };
   }
 }

@@ -38,4 +38,34 @@ describe("Perpendicular Bridge", () => {
     expect(plan.crossingPrompt.toLowerCase()).toContain("crossing");
     expect(plan.rationale.length).toBeGreaterThan(0);
   });
+
+  it("selects SOFT mode when novelty is high and saturation is low", () => {
+    const plan = buildPairedMeditationPlan(PRIMARY, {
+      seed: "soft-seed",
+      state: {
+        mode: "HARSH", // should be overridden by signals
+        signals: [{ novelty: 0.9, saturation: 0.2 }],
+        thresholds: { noveltyHigh: 0.7, saturationHigh: 0.7 },
+      },
+    });
+
+    expect(plan.mode).toBe("SOFT");
+    expect(plan.heuristics.reason.toLowerCase()).toContain("novelty");
+    expect(plan.rationale.some((line) => line.includes("mode=SOFT"))).toBe(true);
+  });
+
+  it("selects HARSH mode when saturation is high", () => {
+    const plan = buildPairedMeditationPlan(PRIMARY, {
+      seed: "harsh-seed",
+      state: {
+        signals: [{ novelty: 0.3, saturation: 0.92 }],
+        currentAffinity: 0.9,
+        thresholds: { saturationHigh: 0.7, minAffinity: 0.4 },
+      },
+    });
+
+    expect(plan.mode).toBe("HARSH");
+    expect(plan.heuristics.reason.toLowerCase()).toContain("saturation");
+    expect(plan.rationale.some((line) => line.includes("mode=HARSH"))).toBe(true);
+  });
 });

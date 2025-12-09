@@ -95,6 +95,29 @@ export interface SwitchSuggestion {
 }
 
 // ============================================================================
+// Perpendicular Planner (context-dependent inversions)
+// ============================================================================
+
+export type PerpendicularMode = "NORMAL" | "SOFT" | "HARSH";
+
+export interface HeuristicSignals {
+  novelty: number; // 0.0 - 1.0
+  saturation: number; // 0.0 - 1.0
+}
+
+export interface PerpendularState {
+  mode?: PerpendicularMode; // explicit mode override
+  signals?: HeuristicSignals[]; // recent signal history
+  recentBranches?: string[]; // last perpendicular moves used
+  thresholds?: {
+    noveltyHigh?: number;
+    saturationHigh?: number;
+    minAffinity?: number;
+  };
+  currentAffinity?: number; // connection to source context (0.0 - 1.0)
+}
+
+// ============================================================================
 // Tool Input/Output Schemas
 // ============================================================================
 
@@ -300,6 +323,8 @@ export interface PlanPerpendicularMeditationsRequest {
   primaryLabel?: string;           // Label for primary path
   perpendicularLabel?: string;     // Label for orthogonal path
   useAntonymMap?: boolean;         // Toggle antonym mapping
+  state?: PerpendularState;        // Optional heuristic state for gating
+  useHeuristicGating?: boolean;    // Enable novelty/saturation routing (default true)
 }
 
 export interface PlanPerpendicularMeditationsResponse {
@@ -316,6 +341,11 @@ export interface PlanPerpendicularMeditationsResponse {
   crossingPrompt: string;
   mapping: Array<{ source?: string; derived: string; method: string }>;
   rationale: string[];
+  mode: PerpendicularMode; // Selected perpendicular mode (SOFT/HARSH/NORMAL)
+  heuristics?: {
+    signalUsed?: HeuristicSignals;
+    reason: string;
+  };
   message: string;
 }
 
