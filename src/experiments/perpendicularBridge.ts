@@ -82,14 +82,28 @@ export function derivePerpendularStateFromSession(
 
   const affinity = computeAffinity(contextWords, latest.meditation?.contextWords);
 
+  const recentBranches = mergeRecentBranches(
+    baseState?.recentBranches,
+    session.metrics.recentPerpendicularModes
+  );
+
   return {
     ...baseState,
     mode: baseState?.mode ?? "NORMAL",
     signals,
-    recentBranches: baseState?.recentBranches ?? [],
+    recentBranches,
     thresholds: baseState?.thresholds,
     currentAffinity: baseState?.currentAffinity ?? affinity,
   };
+}
+
+function mergeRecentBranches(
+  base?: string[],
+  fromMetrics?: string[]
+): string[] | undefined {
+  const merged = [...(base ?? []), ...(fromMetrics ?? [])];
+  if (merged.length === 0) return base;
+  return merged.slice(-3);
 }
 
 interface NormalizedState {

@@ -65,4 +65,17 @@ describe("derivePerpendularStateFromSession", () => {
     const state = derivePerpendularStateFromSession(null, ["x"], base);
     expect(state).toEqual(base);
   });
+
+  it("merges recentBranches from metrics", () => {
+    const session: ContemplativeMemory = {
+      sessionId: "s2",
+      startedAt: 0,
+      metrics: { ...metrics, recentPerpendicularModes: ["HARSH", "SOFT"] },
+      traces: [makeMeditationTrace("t1", 1, ["a"], ["a"], 0.9)],
+    };
+
+    const base: PerpendularState = { recentBranches: ["NORMAL"] };
+    const state = derivePerpendularStateFromSession(session, ["a"], base);
+    expect(state?.recentBranches).toEqual(["NORMAL", "HARSH", "SOFT"].slice(-3));
+  });
 });

@@ -60,6 +60,7 @@ export interface SessionMetrics {
   pauseDuration: number; // Seconds since last user input
   avgCycleDuration: number; // Median trace-to-trace time (seconds)
   lastSuggestionTime: number; // Unix ms
+  recentPerpendicularModes?: PerpendicularMode[]; // Last selected perpendicular modes
 }
 
 export interface ContemplativeMemory {

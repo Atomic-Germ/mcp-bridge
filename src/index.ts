@@ -463,6 +463,7 @@ async function handleStartSession(): Promise<StartSessionResponse> {
     pauseDuration: 0,
     avgCycleDuration: 0,
     lastSuggestionTime: now,
+    recentPerpendicularModes: [],
   };
 
   const session: ContemplativeMemory = {
@@ -1537,9 +1538,10 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
     }
 
     let derivedState = req.state;
+    let sessionForUpdate: ContemplativeMemory | null = null;
     if (currentSessionId) {
-      const session = await storage.loadSession(currentSessionId);
-      derivedState = derivePerpendularStateFromSession(session, req.contextWords, req.state);
+      sessionForUpdate = await storage.loadSession(currentSessionId);
+      derivedState = derivePerpendularStateFromSession(sessionForUpdate, req.contextWords, req.state);
     }
 
     const plan = buildPairedMeditationPlan(req.contextWords, {
@@ -1552,6 +1554,12 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
       state: derivedState,
       useHeuristicGating: req.useHeuristicGating,
     });
+
+    if (currentSessionId && sessionForUpdate) {
+      const prior = sessionForUpdate.metrics.recentPerpendicularModes ?? [];
+      const updated = [...prior, plan.mode].slice(-3);
+      await storage.updateMetrics(currentSessionId, { recentPerpendicularModes: updated });
+    }
 
     return {
       ...plan,
