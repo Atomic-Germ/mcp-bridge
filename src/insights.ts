@@ -98,17 +98,33 @@ export function computeNoveltyScore(
 }
 
 /**
+ * Strip markdown formatting from text
+ * Removes bold, italic, links, code blocks, and other markdown syntax
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // Bold
+    .replace(/\*([^*]+)\*/g, "$1") // Italic
+    .replace(/__([^_]+)__/g, "$1") // Bold underscore
+    .replace(/_([^_]+)_/g, "$1") // Italic underscore
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Links
+    .replace(/`([^`]+)`/g, "$1") // Inline code
+    .replace(/```[\s\S]*?```/g, "") // Code blocks
+    .replace(/#+\s+/g, "") // Headers
+    .replace(/^\s*[-*+]\s+/gm, "") // Bullet points
+    .replace(/^\s*\d+\.\s+/gm, "") // Numbered lists
+    .trim();
+}
+
+/**
  * Extract actionable feedback from a critique response
  * Identifies sentences/phrases that suggest actions or considerations
  */
 export function extractFeedback(critiqueResponse: string): string[] {
   const feedback: string[] = [];
 
-  // Split into sentences
-  const sentences = critiqueResponse
-    .split(/[.!?]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const normalized = normalizeCritiqueText(critiqueResponse);
+  const sentences = splitIntoSentences(normalized).map((s) => stripMarkdown(s));
 
   // Look for actionable patterns
   const actionPatterns = [
@@ -128,9 +144,7 @@ export function extractFeedback(critiqueResponse: string): string[] {
 
   for (const sentence of sentences) {
     // Check if sentence contains action patterns
-    const hasAction = actionPatterns.some((pattern) =>
-      pattern.test(sentence)
-    );
+    const hasAction = actionPatterns.some((pattern) => pattern.test(sentence));
 
     if (hasAction && sentence.length > 10) {
       // Extract the core phrase (remove redundant connectors)
@@ -149,6 +163,31 @@ export function extractFeedback(critiqueResponse: string): string[] {
   }
 
   return feedback.slice(0, 5); // Return top 5
+}
+
+export function extractQuestions(critiqueResponse: string): string[] {
+  const normalized = normalizeCritiqueText(critiqueResponse);
+  const sentences = splitIntoSentences(normalized, true);
+  return sentences.filter((s) => s.endsWith("?")).slice(0, 5);
+}
+
+function normalizeCritiqueText(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1") // bold
+    .replace(/\*(.*?)\*/g, "$1") // italics
+    .replace(/`(.*?)`/g, "$1") // code
+    .replace(/^\s*[-*•]\s+/gm, "") // bullets
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitIntoSentences(text: string, keepPunctuation: boolean = false): string[] {
+  const matches = text.match(/[^.!?]+[.!?]?/g);
+  if (!matches) return [];
+  return matches
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => (keepPunctuation ? s : s.replace(/[.!?]+$/, "")));
 }
 
 /**

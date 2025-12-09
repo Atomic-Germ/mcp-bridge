@@ -5,7 +5,7 @@
  */
 
 import { MeditationTrace } from "./types.js";
-import { extractFeedback } from "./insights.js";
+import { extractFeedback, extractQuestions } from "./insights.js";
 
 /**
  * Format meditation insights for a consult/critique prompt
@@ -30,49 +30,51 @@ export function formatContextForConsult(
   const { emergentSentence, contextWords } = trace.meditation;
   const { extractedPatterns, novelty, semanticClusters } = trace.insights;
 
-  // Build system prompt: establish the grounding
+  // Build system prompt: MODEL-OPTIMIZED, terse, technical, executable
+  // Optimized for model cognition, not human readability
   const systemPrompt = [
-    "You are an expert at structured critique, helping refine ideas through careful evaluation.",
+    "ROLE: Structured critique engine for divergent idea exploration.",
+    "INPUT: Meditation trace with emergent insight + context + concept extraction.",
+    "OUTPUT: Binary feedback: {assumptions to challenge} + {novel exploration angles} + {tension/contradiction pairs} + {next-step hypotheses}.",
     "",
-    "CONTEXT:",
-    `The person just meditated on: [${contextWords.join(", ")}]`,
-    `And arrived at this emergent insight: "${emergentSentence}"`,
+    `MEDITATION_INPUT: [${contextWords.join("|")}]`,
+    `EMERGENT: ${emergentSentence}`,
     "",
-    "KEY CONCEPTS TO EVALUATE:",
-    extractedPatterns.map((c, i) => `  ${i + 1}. ${c}`).join("\n"),
+    `CONCEPTS: [${extractedPatterns.join("|")}]`,
     "",
-    "SEMANTIC RELATIONSHIPS:",
-    semanticClusters
-      .map((cluster, i) => `  Cluster ${i + 1}: [${cluster.join(", ")}]`)
+    `CLUSTERS: ${semanticClusters.map((c) => `[${c.join("|")}]`).join(" | ")}`,
+    "",
+    `NOVELTY: ${(novelty * 100).toFixed(0)}`,
+    sessionHistory ? `SESSION_AVG: ${(sessionHistory.avgNovelty * 100).toFixed(0)}` : "",
+    `SESSION_DEPTH: ${sessionHistory?.count || 1}`,
+    "",
+    "CRITIQUE_TARGETS:",
+    extractedPatterns
+      .map(
+        (c, i) =>
+          `T${i + 1}: assume(${c}) → challenge → counterexample → subsume/evolve`
+      )
       .join("\n"),
     "",
-    `NOVELTY SIGNAL: ${(novelty * 100).toFixed(0)}% (0=familiar, 100=breakthrough)`,
-    sessionHistory
-      ? `SESSION PATTERN: ${sessionHistory.count} meditations so far, avg novelty ${(sessionHistory.avgNovelty * 100).toFixed(0)}%`
-      : "",
+    "EXECUTION:",
+    "1. For each concept: identify implicit assumption.",
+    "2. For each pair: find tension points (incompatibility, contradiction, paradox).",
+    "3. For each tension: suggest complementary perspective (inversion, composition, boundary-crossing).",
+    "4. For next-step: specify hypothesis that extends novelty vector (orthogonal to current trajectory).",
     "",
-    "YOUR TASK:",
-    "Provide structured critique that:",
-    "• Questions assumptions in the concepts above",
-    "• Suggests novel angles the person hasn't considered",
-    "• Identifies tensions or contradictions",
-    "• Proposes next steps for deepening the ideas",
-    "",
-    "Format: Lead with specific feedback, end with actionable suggestions.",
+    "OUTPUT_FORMAT: Compact, concept-indexed, hypothesis-driven. Omit fluff. Maximize conceptual density.",
+    "AUDIENCE: Next iteration of divergence; optimize for model-to-model handoff.",
   ]
-    .filter((line) => line !== "" || line.length > 0) // Keep structure
+    .filter((line) => line !== "")
     .join("\n");
 
-  // Build user prompt: the actual question
+  // Build user prompt: terse, structural, model-focused
   const userPrompt = [
-    `I just had this creative insight: "${emergentSentence}"`,
+    `INSIGHT: "${emergentSentence}"`,
+    `FROM: [${contextWords.join(", ")}]`,
+    `CONCEPTS: [${extractedPatterns.join(", ")}]`,
     "",
-    `Based on thinking about: ${contextWords.join(", ")}`,
-    "",
-    "The concepts I'm working with are:",
-    extractedPatterns.map((c) => `• ${c}`).join("\n"),
-    "",
-    "Please critique my thinking. What am I missing? What should I explore next?",
+    "QUERY: Identify assumption breakdowns, tension clusters, and evolution hypotheses.",
   ].join("\n");
 
   return {
@@ -107,12 +109,8 @@ export function formatContextForMeditation(
   // Extract feedback using M1 logic
   const feedback = extractFeedback(response);
 
-  // Extract provocative questions (sentences with ? mark)
-  const sentences = response.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-  const questions = sentences
-    .filter((s) => response.includes(s + "?"))
-    .map((s) => s.trim())
-    .slice(0, 3);
+  // Extract provocative questions (retain punctuation)
+  const questions = extractQuestions(response).slice(0, 3);
 
   // Extract context words from feedback
   // Look for nouns/concepts in the feedback

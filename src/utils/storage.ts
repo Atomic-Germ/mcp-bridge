@@ -182,6 +182,86 @@ export class StorageManager {
   }
 
   /**
+   * Get list of available sessions with metadata
+   */
+  async getAvailableSessions(): Promise<
+    Array<{
+      sessionId: string;
+      startedAt: number;
+      traceCount: number;
+      lastActive: number;
+    }>
+  > {
+    const allSessions = await this.loadAllSessions();
+    return Object.entries(allSessions).map(([sessionId, session]) => ({
+      sessionId,
+      startedAt: session.startedAt,
+      traceCount: session.traces.length,
+      lastActive: session.metrics.lastModeSwitch,
+    }));
+  }
+
+  /**
+   * Get the current session ID from disk (if persisted)
+   */
+  async getCurrentSessionId(): Promise<string | null> {
+    const currentSessionFile = `${this.storagePath}/current-session.json`;
+    try {
+      const content = await fs.readFile(currentSessionFile, "utf-8");
+      const data = JSON.parse(content);
+      return data.sessionId || null;
+    } catch {
+      // File doesn't exist or is invalid
+      return null;
+    }
+  }
+
+  /**
+   * Persist the current session ID to disk
+   */
+  async setCurrentSessionId(sessionId: string): Promise<void> {
+    const currentSessionFile = `${this.storagePath}/current-session.json`;
+    try {
+      const data = { sessionId, timestamp: Date.now() };
+      await fs.writeFile(
+        currentSessionFile,
+        JSON.stringify(data, null, 2),
+        "utf-8"
+      );
+    } catch (error) {
+      throw new StorageError(
+        `Failed to persist current session: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Clear the current session ID from disk
+   */
+  async clearCurrentSessionId(): Promise<void> {
+    const currentSessionFile = `${this.storagePath}/current-session.json`;
+    try {
+      await fs.unlink(currentSessionFile);
+    } catch {
+      // File doesn't exist; that's ok
+    }
+  }
+
+  /**
+   * Get the most recent session
+   */
+  async getMostRecentSession(): Promise<string | null> {
+    const sessions = await this.getAvailableSessions();
+    if (sessions.length === 0) {
+      return null;
+    }
+
+    // Sort by lastActive (most recent first)
+    const sorted = sessions.sort((a, b) => b.lastActive - a.lastActive);
+    return sorted[0].sessionId;
+  }
+
+  /**
    * Delete a session (for cleanup)
    */
   async deleteSession(sessionId: string): Promise<void> {

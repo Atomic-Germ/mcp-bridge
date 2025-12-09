@@ -21,11 +21,13 @@ MCP Bridge provides 8 tools for managing the meditation-critique cycle, includin
   - [bridge_get_critique_for_meditation](#bridge_get_critique_for_meditation)
   - [bridge_get_session_trace](#bridge_get_session_trace)
   - [bridge_weave_session](#bridge_weave_session)
+  - [bridge_get_insight_deepening](#bridge_get_insight_deepening)
 - [Data Models](#data-models)
 - [Error Handling](#error-handling)
 - [Configuration](#configuration)
 
 ---
+
 
 ## Core Tools
 
@@ -522,7 +524,51 @@ const response = await callTool({
 
 ---
 
+
 ### bridge_weave_session
+
+### bridge_get_insight_deepening
+
+Analyzes a meditation trace using creative_insight to extract deeper patterns, meta-themes, and philosophical implications. This tool is designed for reflection and meaning-making, surfacing connections that may be latent in the meditation cycle.
+
+**Input Schema:**
+
+```typescript
+{
+  meditationTraceId: string;   // ✅ Required: UUID of meditation trace
+}
+```
+
+**Returns:**
+
+```typescript
+{
+  content: [{
+    deepThemes: string[];         // Array of meta-level themes and patterns
+    philosophicalImplications: string[]; // Array of deeper questions or implications
+    summary: string;              // Narrative summary of the deepened insight
+    extractedAt: ISO8601;         // Timestamp
+  }]
+}
+```
+
+**Example:**
+
+```javascript
+const response = await callTool({
+  name: "bridge_get_insight_deepening",
+  arguments: {
+    meditationTraceId: "46ddada3-ef4b-4166-9850-f837e4f039c7"
+  }
+});
+// Returns: deepThemes, philosophicalImplications, summary
+```
+
+**Behavior:**
+- Uses creative_insight to analyze the meditation trace
+- Surfaces meta-patterns, paradoxes, and philosophical questions
+- Provides a narrative summary for reflection
+- Performance: <100ms
 
 Weaves meditation traces into a narrative "dream"—a coherent stream of consciousness connecting insights via semantic adjacency.
 

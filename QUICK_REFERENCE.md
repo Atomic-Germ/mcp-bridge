@@ -64,7 +64,7 @@ SwitchSuggestion = {
 
 ---
 
-## 7 Bridge Tools
+## Bridge Tools (Core + Perpendicular)
 
 | Tool | Input | Output | Why |
 |------|-------|--------|-----|
@@ -75,6 +75,7 @@ SwitchSuggestion = {
 | `bridge_get_context_for_consult(id)` | meditation trace | `formatted_prompt` | Inject insights into consult |
 | `bridge_get_critique_for_meditation(id)` | consult trace | `context_words` | Inject feedback into meditation |
 | `bridge_get_session_trace(sessionId?, limit?)` | optional ID | `[Traces...]` | Replay session |
+| `bridge_plan_perpendicular_meditations(contextWords, targetLength?, seed?)` | primary context | `primary+perpendicular prompts, crossing guidance` | Run paired meditations (orthogonal walk) |
 
 ---
 

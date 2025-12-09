@@ -69,7 +69,7 @@ describe("M4 Integration: Bridge with Creative + Consult", () => {
       expect(context.userPrompt).toBeTruthy();
       expect(context.systemPrompt).toContain("constraint");
       expect(context.systemPrompt).toContain("creativity");
-      expect(context.systemPrompt).toContain("85%");
+      expect(context.systemPrompt).toContain("85");
     });
 
     it("extracts feedback from critique (Creative input)", () => {

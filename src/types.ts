@@ -257,6 +257,80 @@ export interface BuildConceptMemoryResponse {
   message: string;
 }
 
+// Tool 11: bridge_get_insight_deepening
+export interface GetInsightDeepeningRequest {
+  meditationTraceId: string;   // ✅ Required: UUID of meditation trace
+}
+
+export interface InsightPattern {
+  name: string;                // "Paradox", "Emergence", "Harmony", etc.
+  description: string;
+  confidence: number;          // 0-1: confidence level
+  relatedConcepts: string[];
+}
+
+export interface GetInsightDeepeningResponse {
+  traceId: string;
+  patterns: InsightPattern[];
+  metaPatterns: string[];
+  focusAreas: string[];
+  suggestedContextWords: string[];
+  guidingQuestions: string[];
+  message: string;
+}
+
+// Tool 12: bridge_list_sessions
+export interface GetAvailableSessionsResponse {
+  sessions: Array<{
+    sessionId: string;
+    startedAt: number;
+    traceCount: number;
+    lastActive: number;
+  }>;
+  currentSessionId: string | null;
+  message: string;
+}
+
+// Tool 13: bridge_plan_perpendicular_meditations
+export interface PlanPerpendicularMeditationsRequest {
+  contextWords: string[];          // Primary context list
+  targetLength?: number;           // Desired size of perpendicular list
+  additionalPool?: string[];       // Optional extra seeds
+  seed?: string;                   // Seed for deterministic generation
+  primaryLabel?: string;           // Label for primary path
+  perpendicularLabel?: string;     // Label for orthogonal path
+  useAntonymMap?: boolean;         // Toggle antonym mapping
+}
+
+export interface PlanPerpendicularMeditationsResponse {
+  primary: {
+    label: string;
+    contextWords: string[];
+    prompt: string;
+  };
+  perpendicular: {
+    label: string;
+    contextWords: string[];
+    prompt: string;
+  };
+  crossingPrompt: string;
+  mapping: Array<{ source?: string; derived: string; method: string }>;
+  rationale: string[];
+  message: string;
+}
+
+// Tool 13: bridge_resume_session
+export interface ResumeSessionRequest {
+  sessionId: string;  // ✅ Required: which session to resume
+}
+
+export interface ResumeSessionResponse {
+  sessionId: string;
+  traceCount: number;
+  lastActive: number;
+  message: string;
+}
+
 // ============================================================================
 // Error Types
 // ============================================================================

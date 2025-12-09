@@ -70,32 +70,32 @@ describe("Milestone 3: Context Injection", () => {
       expect(context.systemPrompt).toContain("creativity");
     });
 
-    it("should include novelty score", () => {
-      const context = formatContextForConsult(testMeditationTrace);
-      expect(context.systemPrompt).toContain("85%");
-      expect(context.novelty).toBe(0.85);
-    });
+     it("should include novelty score", () => {
+       const context = formatContextForConsult(testMeditationTrace);
+       expect(context.systemPrompt).toContain("NOVELTY: 85");
+       expect(context.novelty).toBe(0.85);
+     });
 
-    it("should include semantic clusters", () => {
-      const context = formatContextForConsult(testMeditationTrace);
-      expect(context.systemPrompt).toContain("Cluster");
-      expect(context.clusters).toHaveLength(2);
-    });
+     it("should include semantic clusters", () => {
+       const context = formatContextForConsult(testMeditationTrace);
+       expect(context.systemPrompt).toContain("CLUSTERS:");
+       expect(context.clusters).toHaveLength(2);
+     });
 
-    it("should include session history when provided", () => {
-      const context = formatContextForConsult(testMeditationTrace, {
-        count: 5,
-        avgNovelty: 0.7,
-      });
-      expect(context.systemPrompt).toContain("SESSION PATTERN");
-      expect(context.systemPrompt).toContain("5 meditations");
-    });
+     it("should include session history when provided", () => {
+       const context = formatContextForConsult(testMeditationTrace, {
+         count: 5,
+         avgNovelty: 0.7,
+       });
+       expect(context.systemPrompt).toContain("SESSION_AVG: 70");
+       expect(context.systemPrompt).toContain("SESSION_DEPTH: 5");
+     });
 
-    it("should have rich user prompt", () => {
-      const context = formatContextForConsult(testMeditationTrace);
-      expect(context.userPrompt).toContain("creative insight");
-      expect(context.userPrompt).toContain("Please critique");
-    });
+     it("should have rich user prompt", () => {
+       const context = formatContextForConsult(testMeditationTrace);
+       expect(context.userPrompt).toContain("INSIGHT:");
+       expect(context.userPrompt).toContain("QUERY:");
+     });
   });
 
   describe("Format Context for Meditation", () => {
