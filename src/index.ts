@@ -1556,6 +1556,7 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
       useHeuristicGating: req.useHeuristicGating,
     });
 
+    let recentBranches: string[] | undefined;
     if (currentSessionId && sessionForUpdate) {
       const prior = sessionForUpdate.metrics.recentPerpendicularModes ?? [];
       const updated = [...prior, plan.mode].slice(-3);
@@ -1565,11 +1566,13 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
         recentPerpendicularModes: updated,
         recentPerpendicularBranches: updatedBranches,
       });
+      recentBranches = updatedBranches;
     }
 
     return {
       ...plan,
-      message: `Planned paired meditations (mode=${plan.mode}) with ${plan.primary.contextWords.length} primary terms and ${plan.perpendicular.contextWords.length} perpendicular terms.`,
+      recentPerpendicularBranches: recentBranches,
+      message: `Planned paired meditations (mode=${plan.mode}, branch=${plan.branchId}) with ${plan.primary.contextWords.length} primary terms and ${plan.perpendicular.contextWords.length} perpendicular terms.`,
     };
   }
 }

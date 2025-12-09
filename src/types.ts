@@ -349,6 +349,7 @@ export interface PlanPerpendicularMeditationsResponse {
     signalUsed?: HeuristicSignals;
     reason: string;
   };
+  recentPerpendicularBranches?: string[]; // Echo of recent branch history if available
   message: string;
 }
 
