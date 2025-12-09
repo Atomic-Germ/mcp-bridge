@@ -464,6 +464,7 @@ async function handleStartSession(): Promise<StartSessionResponse> {
     avgCycleDuration: 0,
     lastSuggestionTime: now,
     recentPerpendicularModes: [],
+    recentPerpendicularBranches: [],
   };
 
   const session: ContemplativeMemory = {
@@ -1558,7 +1559,12 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
     if (currentSessionId && sessionForUpdate) {
       const prior = sessionForUpdate.metrics.recentPerpendicularModes ?? [];
       const updated = [...prior, plan.mode].slice(-3);
-      await storage.updateMetrics(currentSessionId, { recentPerpendicularModes: updated });
+      const priorBranches = sessionForUpdate.metrics.recentPerpendicularBranches ?? [];
+      const updatedBranches = [...priorBranches, plan.branchId].slice(-3);
+      await storage.updateMetrics(currentSessionId, {
+        recentPerpendicularModes: updated,
+        recentPerpendicularBranches: updatedBranches,
+      });
     }
 
     return {

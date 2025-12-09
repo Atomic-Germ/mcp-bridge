@@ -38,6 +38,7 @@ export interface PairedMeditationPlan {
   mapping: Array<{ source?: string; derived: string; method: string }>;
   rationale: string[];
   mode: PerpendicularMode;
+  branchId: string;
   heuristics: {
     signalUsed?: HeuristicSignals;
     reason: string;
@@ -84,7 +85,7 @@ export function derivePerpendularStateFromSession(
 
   const recentBranches = mergeRecentBranches(
     baseState?.recentBranches,
-    session.metrics.recentPerpendicularModes
+    session.metrics.recentPerpendicularBranches ?? session.metrics.recentPerpendicularModes
   );
 
   return {
@@ -130,6 +131,7 @@ export function buildPairedMeditationPlan(
   };
 
   const { perpendicular, mapping, rationale } = generatePerpendicularContext(primaryContext, generatorOptions);
+  const branchId = computeBranchId(perpendicular);
 
   const primaryLabel = options.primaryLabel ?? "primary";
   const perpendicularLabel = options.perpendicularLabel ?? "perpendicular";
@@ -167,8 +169,9 @@ export function buildPairedMeditationPlan(
     },
     crossingPrompt,
     mapping,
-    rationale: [...rationale, heuristicNote],
+    rationale: [...rationale, heuristicNote, `branchId=${branchId}`],
     mode,
+    branchId,
     heuristics: {
       signalUsed,
       reason,
@@ -225,6 +228,15 @@ function augmentPool(additional: string[] | undefined, mode: PerpendicularMode):
   if (mode !== "HARSH") return additional;
   const merged = new Set<string>([...HARSH_SEEDS, ...(additional ?? [])]);
   return Array.from(merged);
+}
+
+function computeBranchId(words: string[]): string {
+  const normalized = normalizeWords(words).join("|");
+  let hash = 5381;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash * 33) ^ normalized.charCodeAt(i);
+  }
+  return `perp-${(hash >>> 0).toString(16)}`;
 }
 
 function computeAffinity(current: string[], prior?: string[]): number {

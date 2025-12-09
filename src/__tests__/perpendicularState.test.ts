@@ -70,12 +70,12 @@ describe("derivePerpendularStateFromSession", () => {
     const session: ContemplativeMemory = {
       sessionId: "s2",
       startedAt: 0,
-      metrics: { ...metrics, recentPerpendicularModes: ["HARSH", "SOFT"] },
+      metrics: { ...metrics, recentPerpendicularBranches: ["perp-a", "perp-b"] },
       traces: [makeMeditationTrace("t1", 1, ["a"], ["a"], 0.9)],
     };
 
     const base: PerpendularState = { recentBranches: ["NORMAL"] };
     const state = derivePerpendularStateFromSession(session, ["a"], base);
-    expect(state?.recentBranches).toEqual(["NORMAL", "HARSH", "SOFT"].slice(-3));
+    expect(state?.recentBranches).toEqual(["NORMAL", "perp-a", "perp-b"].slice(-3));
   });
 });

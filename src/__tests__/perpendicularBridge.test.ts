@@ -37,6 +37,7 @@ describe("Perpendicular Bridge", () => {
     expect(plan.perpendicular.prompt).toContain("Mode: perpendicular");
     expect(plan.crossingPrompt.toLowerCase()).toContain("crossing");
     expect(plan.rationale.length).toBeGreaterThan(0);
+    expect(plan.branchId.startsWith("perp-")).toBe(true);
   });
 
   it("selects SOFT mode when novelty is high and saturation is low", () => {

@@ -61,6 +61,7 @@ export interface SessionMetrics {
   avgCycleDuration: number; // Median trace-to-trace time (seconds)
   lastSuggestionTime: number; // Unix ms
   recentPerpendicularModes?: PerpendicularMode[]; // Last selected perpendicular modes
+  recentPerpendicularBranches?: string[]; // Last perpendicular branchIds (reuse avoidance)
 }
 
 export interface ContemplativeMemory {
@@ -343,6 +344,7 @@ export interface PlanPerpendicularMeditationsResponse {
   mapping: Array<{ source?: string; derived: string; method: string }>;
   rationale: string[];
   mode: PerpendicularMode; // Selected perpendicular mode (SOFT/HARSH/NORMAL)
+  branchId: string; // Stable identifier of the perpendicular branch
   heuristics?: {
     signalUsed?: HeuristicSignals;
     reason: string;
