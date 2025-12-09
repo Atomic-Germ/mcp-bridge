@@ -9,12 +9,91 @@
  * - Dual-process cognition (Kahneman)
  */
 
-import { ContemplativeMemory } from "./types.js";
+import { AsymmetrySignal, ContemplativeMemory } from "./types.js";
 import {
   detectSaturation,
   semanticDistance,
 } from "./insights.js";
 import { jaccardSimilarity } from "./utils/nlp.js";
+
+// Graded asymmetry configuration (critical band around Jaccard threshold)
+export interface GradedAsymmetryConfig {
+  threshold?: number; // Decision boundary for similarity
+  epsilon?: number; // Activation band width around the threshold
+  amplification?: number; // How much asymmetry biases the vote
+  minConcepts?: number; // Minimum concepts to trust the signal
+}
+
+const DEFAULT_ASYMMETRY_CONFIG: Required<GradedAsymmetryConfig> = {
+  threshold: 0.65,
+  epsilon: 0.12,
+  amplification: 0.8,
+  minConcepts: 1,
+};
+
+/**
+ * Compute graded asymmetry between two concept sets near a similarity threshold.
+ * Returns a graded strength in [0,1], where 0.5 = maintain, 0 = lean to previous, 1 = lean to current.
+ */
+export function computeGradedAsymmetry(
+  conceptsA: string[],
+  conceptsB: string[],
+  config: GradedAsymmetryConfig = DEFAULT_ASYMMETRY_CONFIG
+): AsymmetrySignal {
+  const threshold = config.threshold ?? DEFAULT_ASYMMETRY_CONFIG.threshold;
+  const epsilon = config.epsilon ?? DEFAULT_ASYMMETRY_CONFIG.epsilon;
+  const minConcepts = config.minConcepts ?? DEFAULT_ASYMMETRY_CONFIG.minConcepts;
+
+  const a = Array.from(new Set(conceptsA.filter(Boolean)));
+  const b = Array.from(new Set(conceptsB.filter(Boolean)));
+
+  if (a.length < minConcepts || b.length < minConcepts) {
+    return {
+      asymmetry: 0,
+      strength: 0.5,
+      jaccard: 0,
+      proximity: 0,
+      imbalance: 0,
+      direction: "balanced",
+      threshold,
+      epsilon,
+      criticalBandActive: false,
+    };
+  }
+
+  const inter = a.filter((x) => b.includes(x)).length;
+  const union = new Set([...a, ...b]).size;
+  const onlyA = a.filter((x) => !b.includes(x)).length;
+  const onlyB = b.filter((x) => !a.includes(x)).length;
+
+  const jaccard = union > 0 ? inter / union : 0;
+  const delta = Math.abs(jaccard - threshold);
+  const criticalBandActive = delta < epsilon;
+  const proximity = criticalBandActive ? 1 - delta / epsilon : 0;
+
+  const imbalanceMagnitude = union > 0 ? Math.abs(onlyA - onlyB) / union : 0;
+  const directionSign = Math.sign(onlyB - onlyA); // +1 leans to current, -1 to previous
+  const direction: AsymmetrySignal["direction"] =
+    directionSign > 0 ? "forward" : directionSign < 0 ? "backward" : "balanced";
+
+  const asymmetry = proximity * imbalanceMagnitude;
+  const strength = Math.max(
+    0,
+    Math.min(1, 0.5 + directionSign * asymmetry * Math.pow(proximity, 2))
+  );
+
+  return {
+    asymmetry,
+    strength,
+    jaccard,
+    proximity,
+    imbalance: imbalanceMagnitude,
+    direction,
+    threshold,
+    epsilon,
+    criticalBandActive,
+  };
+}
 
 /**
  * Heuristic 1: Semantic Saturation
@@ -225,6 +304,7 @@ export interface ModeSwitchSuggestion {
     noveltyDrop: { triggered: boolean; confidence: number };
     critiqueFreshness: { triggered: boolean; confidence: number };
   };
+  asymmetry?: AsymmetrySignal;
 }
 
 export function suggestModeSwitch(
@@ -251,7 +331,8 @@ export function suggestModeSwitch(
     pause: 0.25,
     noveltyDrop: 0.25,
     critiqueFreshness: 0.2,
-  }
+  },
+  asymmetryConfig: GradedAsymmetryConfig = DEFAULT_ASYMMETRY_CONFIG
 ): ModeSwitchSuggestion | null {
   if (!memory || memory.traces.length < 2) {
     return null; // Not enough data
@@ -262,6 +343,18 @@ export function suggestModeSwitch(
   const pause = pauseDetectionHeuristic(memory, heuristicsConfig.pauseThresholdMs);
   const noveltyDrop = noveltyDropDetector(memory, heuristicsConfig.noveltyDropThreshold);
   const critiqueFreshness = critiqueFreshnessDetector(memory, heuristicsConfig.critiqueFreshnessThreshold);
+
+  // Graded asymmetry (only meaningful if last two meditations are similar enough)
+  let asymmetrySignal: AsymmetrySignal | undefined;
+  const recentMeditations = memory.traces.filter((t) => t.insights).slice(-2);
+  if (recentMeditations.length === 2) {
+    const [prev, curr] = recentMeditations;
+    asymmetrySignal = computeGradedAsymmetry(
+      prev.insights?.extractedPatterns ?? [],
+      curr.insights?.extractedPatterns ?? [],
+      asymmetryConfig
+    );
+  }
 
   // Vote for diverge (meditation) vs converge (critique)
   let convergeScore = 0; // Vote for critique
@@ -290,6 +383,16 @@ export function suggestModeSwitch(
   // Critique freshness → suggests need for new divergent pass
   if (critiqueFreshness.triggered) {
     divergeScore += critiqueFreshness.confidence * heuristicWeights.critiqueFreshness;
+  }
+
+  // Apply asymmetry bias inside the critical band
+  if (asymmetrySignal?.criticalBandActive && asymmetrySignal.asymmetry > 0) {
+    const bias = asymmetrySignal.asymmetry * (asymmetryConfig.amplification ?? DEFAULT_ASYMMETRY_CONFIG.amplification);
+    if (asymmetrySignal.direction === "forward") {
+      divergeScore += bias;
+    } else if (asymmetrySignal.direction === "backward") {
+      convergeScore += bias;
+    }
   }
 
   // Calculate combined confidence
@@ -333,6 +436,17 @@ export function suggestModeSwitch(
     return null;
   }
 
+  // Add asymmetry context to reason if active
+  if (asymmetrySignal?.criticalBandActive) {
+    const lean =
+      asymmetrySignal.direction === "forward"
+        ? "leaning forward (stay diverge)"
+        : asymmetrySignal.direction === "backward"
+          ? "leaning backward (switch to critique)"
+          : "balanced";
+    reason = `${reason} | Asymmetry: ${lean}, strength ${(asymmetrySignal.strength * 100).toFixed(0)}%`;
+  }
+
   return {
     suggestedMode,
     confidence,
@@ -349,5 +463,6 @@ export function suggestModeSwitch(
         confidence: critiqueFreshness.confidence,
       },
     },
+    asymmetry: asymmetrySignal,
   };
 }

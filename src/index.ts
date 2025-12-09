@@ -634,9 +634,13 @@ async function handleSuggestModeSwitch(): Promise<SuggestModeSwitchResponse> {
     };
   }
 
+  const asymmetrySnippet = suggestion.asymmetry?.criticalBandActive
+    ? ` Asymmetry strength: ${(suggestion.asymmetry.strength * 100).toFixed(0)}% (${suggestion.asymmetry.direction}).`
+    : "";
+
   return {
     suggestion,
-    message: `Suggestion: Switch to ${suggestion.suggestedMode} mode. Confidence: ${(suggestion.confidence * 100).toFixed(0)}%. Reason: ${suggestion.reason}`,
+    message: `Suggestion: Switch to ${suggestion.suggestedMode} mode. Confidence: ${(suggestion.confidence * 100).toFixed(0)}%. Reason: ${suggestion.reason}.${asymmetrySnippet}`,
   };
 }
 

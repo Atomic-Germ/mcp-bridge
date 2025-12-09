@@ -84,6 +84,18 @@ export interface HeuristicResult {
   reason: string;
 }
 
+export interface AsymmetrySignal {
+  asymmetry: number; // 0-1: degree of imbalance inside the critical band
+  strength: number; // 0-1: graded mode-lean suggestion (0 = lean previous, 0.5 = maintain, 1 = lean current)
+  jaccard: number; // similarity between the two concept sets
+  proximity: number; // activation strength inside the critical band
+  imbalance: number; // normalized difference between unique elements
+  direction: "forward" | "backward" | "balanced"; // forward = lean to newer/current set
+  threshold: number; // decision boundary
+  epsilon: number; // activation band width
+  criticalBandActive: boolean; // whether graded asymmetry was applied
+}
+
 export interface SwitchSuggestion {
   suggestedMode: "diverge" | "converge";
   confidence: number; // 0-1
@@ -94,6 +106,7 @@ export interface SwitchSuggestion {
     noveltyDrop: { triggered: boolean; confidence: number };
     critiqueFreshness: { triggered: boolean; confidence: number };
   };
+  asymmetry?: AsymmetrySignal; // Optional graded asymmetry signal when concepts are near the decision boundary
 }
 
 // ============================================================================

@@ -269,7 +269,17 @@ Analyzes session traces and suggests whether to switch between diverge (creative
     pause: { triggered: boolean; confidence: number };
     noveltyDrop: { triggered: boolean; confidence: number };
     critiqueFreshness: { triggered: boolean; confidence: number };
-  }
+  };
+  asymmetry?: {
+    asymmetry: number;             // 0-1: degree of imbalance inside critical band
+    strength: number;              // 0-1: 0=lean previous, 0.5=maintain, 1=lean current
+    jaccard: number;               // similarity between last two concept sets
+    proximity: number;             // activation strength inside the band
+    direction: "forward" | "backward" | "balanced";
+    threshold: number;             // decision boundary used
+    epsilon: number;               // activation band width
+    criticalBandActive: boolean;   // whether graded asymmetry influenced the vote
+  };
 }
 ```
 
@@ -308,6 +318,7 @@ const response = await callTool({
 **Suggestion Logic:**
 - Runs all 4 heuristics
 - Returns highest-confidence trigger (if confidence >= configured threshold, default 0.4)
+- If the last two meditations are *near* the similarity threshold (Jaccard within ε), a graded asymmetry signal activates to gently lean the vote toward keeping divergence (forward) or switching to critique (backward). Strength remains neutral (0.5) outside the critical band.
 - If multiple heuristics suggest same mode, confidence increases
 - Returns `null` if confidence below threshold
 

@@ -172,10 +172,9 @@ function computeThreadCoupling(feedback: FeedbackItem | string, thread: ConceptT
 
   // Coupling = weighted combination of direct mentions + Jaccard
   const directMentionScore = directMentions / Math.max(thread.concepts.length, 1);
-  const coupling = Math.max(
+  const coupling =
     directMentionScore * 0.6 +  // 60% from direct mentions
-    jaccardScore * 0.4         // 40% from token overlap
-  );
+    jaccardScore * 0.4;          // 40% from token overlap
 
   return Math.min(1, coupling);
 }
@@ -188,9 +187,9 @@ function computeThreadRelevance(
   thread: ConceptThread,
   feedbackItems: FeedbackItem[]
 ): number {
-  // Thread-relevant feedback: items that couple strongly to this thread
+  // Thread-relevant feedback: items that couple to this thread (threshold=0.2 allows partial coupling)
   const threadRelevantItems = feedbackItems.filter(
-    (item) => (item.threadCouplings.get(thread.id) || 0) > 0.3
+    (item) => (item.threadCouplings.get(thread.id) || 0) > 0.2
   );
 
   if (threadRelevantItems.length === 0) {

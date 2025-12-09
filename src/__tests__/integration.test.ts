@@ -9,8 +9,52 @@ import {
   formatContextForMeditation,
   buildConversationBridge,
 } from "../contextInjection.js";
-import { suggestModeSwitch } from "../modeSwitch.js";
+import { computeGradedAsymmetry, suggestModeSwitch } from "../modeSwitch.js";
 import { MeditationTrace, ContemplativeMemory } from "../types.js";
+
+function createTestMemory(
+  meditationCount: number,
+  conceptSets: string[][] = []
+): ContemplativeMemory {
+  const traces: MeditationTrace[] = [];
+  const baseTime = Date.now() - meditationCount * 60000;
+
+  for (let i = 0; i < meditationCount; i++) {
+    const concepts =
+      conceptSets[i] || ["concept_a", "concept_b", "concept_c"];
+    traces.push({
+      id: `trace_${i}`,
+      timestamp: baseTime + i * 60000,
+      mode: "diverge",
+      meditation: {
+        contextWords: concepts,
+        numRandomWords: 12,
+        emergentSentence: `Meditation ${i}: ${concepts.join(" ")}`,
+      },
+      insights: {
+        extractedPatterns: concepts,
+        novelty: Math.max(0, 1.0 - i * 0.1),
+        semanticClusters: [concepts],
+        extractedAt: baseTime + i * 60000,
+      },
+      bridge: { confidenceLevel: 0.9 },
+    });
+  }
+
+  return {
+    sessionId: "test",
+    startedAt: baseTime,
+    traces,
+    metrics: {
+      lastModeSwitch: baseTime,
+      currentMode: "diverge",
+      repetitionCount: 0,
+      pauseDuration: 0,
+      avgCycleDuration: 60,
+      lastSuggestionTime: baseTime,
+    },
+  };
+}
 
 describe("M4 Integration: Bridge with Creative + Consult", () => {
   const sampleMeditationTrace: MeditationTrace = {
@@ -130,6 +174,26 @@ describe("M4 Integration: Bridge with Creative + Consult", () => {
       const suggestion = suggestModeSwitch(memory, 0.1);
       // With declining novelty, may suggest converge
       expect(typeof suggestion === "object" || suggestion === null).toBe(true);
+    });
+
+    it("emits graded asymmetry when concepts sit near the threshold", () => {
+      const memory = createTestMemory(2, [
+        ["a", "b", "c"],
+        ["a", "b", "c", "d"],
+      ]);
+
+      const suggestion = suggestModeSwitch(memory, 0.1);
+      expect(suggestion?.asymmetry).toBeDefined();
+      if (suggestion?.asymmetry) {
+        expect(suggestion.asymmetry.criticalBandActive).toBe(true);
+        expect(suggestion.asymmetry.strength).toBeGreaterThan(0);
+      }
+    });
+
+    it("returns neutral asymmetry outside the critical band", () => {
+      const signal = computeGradedAsymmetry(["a"], ["x", "y"]);
+      expect(signal.criticalBandActive).toBe(false);
+      expect(signal.strength).toBeCloseTo(0.5);
     });
   });
 
