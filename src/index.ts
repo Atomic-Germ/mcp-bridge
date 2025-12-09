@@ -62,7 +62,7 @@ import {
   formatDeepInsights,
   createContextFromInsights,
 } from "./utils/creativeInsightIntegration.js";
-import { buildPairedMeditationPlan } from "./experiments/perpendicularBridge.js";
+import { buildPairedMeditationPlan, derivePerpendularStateFromSession } from "./experiments/perpendicularBridge.js";
 
 // ============================================================================
 // Global State
@@ -1536,6 +1536,12 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
       throw new InvalidInputError("contextWords are required to build a perpendicular plan");
     }
 
+    let derivedState = req.state;
+    if (currentSessionId) {
+      const session = await storage.loadSession(currentSessionId);
+      derivedState = derivePerpendularStateFromSession(session, req.contextWords, req.state);
+    }
+
     const plan = buildPairedMeditationPlan(req.contextWords, {
       targetLength: req.targetLength,
       additionalPool: req.additionalPool,
@@ -1543,7 +1549,7 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
       primaryLabel: req.primaryLabel,
       perpendicularLabel: req.perpendicularLabel,
       useAntonymMap: req.useAntonymMap,
-      state: req.state,
+      state: derivedState,
       useHeuristicGating: req.useHeuristicGating,
     });
 

@@ -5,7 +5,8 @@
  */
 
 import { generatePerpendicularContext, PerpendicularOptions } from "../utils/perpendicularContext.js";
-import { HeuristicSignals, PerpendularState, PerpendicularMode } from "../types.js";
+import { HeuristicSignals, PerpendularState, PerpendicularMode, ContemplativeMemory } from "../types.js";
+import { jaccardSimilarity } from "../utils/nlp.js";
 
 const DEFAULT_THRESHOLDS = {
   noveltyHigh: 0.7,
@@ -48,6 +49,47 @@ export interface BuildPairedPlanOptions extends PerpendicularOptions {
   perpendicularLabel?: string;
   state?: PerpendularState;
   useHeuristicGating?: boolean;
+}
+
+/**
+ * Derive a PerpendularState from recent session traces plus optional user-provided state.
+ * - novelty: from latest meditation trace
+ * - saturation: Jaccard overlap between last two meditation concept sets (0-1)
+ * - currentAffinity: Jaccard between requested contextWords and last meditation context
+ */
+export function derivePerpendularStateFromSession(
+  session: ContemplativeMemory | null,
+  contextWords: string[],
+  baseState?: PerpendularState
+): PerpendularState | undefined {
+  if (!session) return baseState;
+
+  const meditations = session.traces
+    .filter((t) => t.meditation && t.insights)
+    .slice(-2);
+
+  if (meditations.length === 0) return baseState;
+
+  const latest = meditations[meditations.length - 1];
+  const prev = meditations.length > 1 ? meditations[meditations.length - 2] : undefined;
+
+  const latestNovelty = latest.insights?.novelty ?? 0;
+  const saturation = prev && prev.insights
+    ? jaccardSimilarity(prev.insights.extractedPatterns, latest.insights?.extractedPatterns ?? [])
+    : 0;
+
+  const signals: HeuristicSignals[] = [...(baseState?.signals ?? []), { novelty: latestNovelty, saturation }].slice(-5);
+
+  const affinity = computeAffinity(contextWords, latest.meditation?.contextWords);
+
+  return {
+    ...baseState,
+    mode: baseState?.mode ?? "NORMAL",
+    signals,
+    recentBranches: baseState?.recentBranches ?? [],
+    thresholds: baseState?.thresholds,
+    currentAffinity: baseState?.currentAffinity ?? affinity,
+  };
 }
 
 interface NormalizedState {
@@ -169,6 +211,20 @@ function augmentPool(additional: string[] | undefined, mode: PerpendicularMode):
   if (mode !== "HARSH") return additional;
   const merged = new Set<string>([...HARSH_SEEDS, ...(additional ?? [])]);
   return Array.from(merged);
+}
+
+function computeAffinity(current: string[], prior?: string[]): number {
+  if (!prior || prior.length === 0) return 1;
+  const a = normalizeWords(current);
+  const b = normalizeWords(prior);
+  if (a.length === 0 || b.length === 0) return 0;
+  return jaccardSimilarity(a, b);
+}
+
+function normalizeWords(words: string[]): string[] {
+  return words
+    .map((w) => w.trim().toLowerCase())
+    .filter((w) => w.length > 0);
 }
 
 function composePrompt(label: string, contextWords: string[], intent: string): string {
