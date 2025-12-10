@@ -1,0 +1,1 @@
+Conditional/overlapping precedence (fractional coupling) → Critique formatter and relevance scoring: track multiple active concept threads and score critiques per-thread. Let extractFeedback tag feedback to the concept it couples with; update scoreRelevance to consider partial overlaps instead of flat mention counts.
