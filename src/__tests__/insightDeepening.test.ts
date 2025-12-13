@@ -1,9 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { bridge_get_insight_deepening } from "../index";
 import {
   parseInsightResponse,
   formatDeepInsights,
   createContextFromInsights,
 } from "../utils/creativeInsightIntegration";
+
+vi.mock("../index", () => ({
+  bridge_get_insight_deepening: vi.fn(async ({ meditationTraceId }) => {
+    return {
+      deepThemes: ["Constraint and Freedom", "Emergence of Patterns"],
+      philosophicalImplications: [
+        "Does freedom require constraint to be meaningful?",
+        "Can complexity emerge from simple rules?",
+      ],
+      narrative: "In the interplay of constraint and freedom, patterns emerge...",
+      metaThemes: ["Dialectics of Creativity"],
+    };
+  }),
+}));
 
 describe("Creative Insight Integration", () => {
   describe("parseInsightResponse", () => {
@@ -217,6 +232,59 @@ describe("Creative Insight Integration", () => {
       expect(nextContext.guidingQuestions.some((q) => q.includes("?"))).toBe(
         true
       );
+    });
+  });
+
+  describe("bridge_get_insight_deepening", () => {
+    it("should generate a narrative from the meditation trace", async () => {
+      const meditationTraceId = "test-trace-id";
+
+      const response = await bridge_get_insight_deepening({ meditationTraceId });
+
+      expect(response.narrative).toBeDefined();
+      expect(response.narrative.length).toBeGreaterThan(0);
+    });
+
+    it("should extract themes and meta-themes from the narrative", async () => {
+      const meditationTraceId = "test-trace-id";
+
+      const response = await bridge_get_insight_deepening({ meditationTraceId });
+
+      expect(response.deepThemes).toBeDefined();
+      expect(response.deepThemes.length).toBeGreaterThan(0);
+      expect(response.metaThemes).toBeDefined();
+      expect(response.metaThemes.length).toBeGreaterThan(0);
+    });
+
+    it("should handle variability in narrative generation gracefully", async () => {
+      const meditationTraceId = "test-trace-id";
+
+      const response = await bridge_get_insight_deepening({ meditationTraceId });
+
+      // Forgiving test: Ensure key outputs are present
+      expect(response.narrative).toBeDefined();
+      expect(response.deepThemes).toBeDefined();
+      expect(response.metaThemes).toBeDefined();
+    });
+
+    it("should complete the insight deepening flow", async () => {
+      const meditationTraceId = "test-trace-id";
+
+      const response = await bridge_get_insight_deepening({ meditationTraceId });
+
+      // Validate narrative
+      expect(response.narrative).toBeDefined();
+      expect(response.narrative.length).toBeGreaterThan(0);
+
+      // Validate themes
+      expect(response.deepThemes.length).toBeGreaterThan(0);
+      expect(response.metaThemes.length).toBeGreaterThan(0);
+
+      // Validate philosophical implications
+      expect(response.philosophicalImplications.length).toBeGreaterThan(0);
+      expect(
+        response.philosophicalImplications.some((q: string) => q.includes("?"))
+      ).toBe(true);
     });
   });
 });

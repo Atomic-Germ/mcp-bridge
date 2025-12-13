@@ -19,6 +19,10 @@ export class StorageManager {
   private lockFilePath: string;
 
   constructor(config: BridgeConfig) {
+    console.log("StorageManager initialized with config:", config);
+    if (!config) {
+      console.trace("StorageManager received undefined config");
+    }
     this.storagePath = config.storagePath;
     this.memoryFilePath = `${this.storagePath}/memory.json`;
     this.lockFilePath = `${this.storagePath}/.lock`;
@@ -307,5 +311,20 @@ export class StorageManager {
     } catch {
       return { totalSessions, totalTraces, storageBytes: 0 };
     }
+  }
+
+  /**
+   * Load a specific meditation trace by its ID
+   */
+  async loadMeditationTrace(traceId: string): Promise<MeditationTrace | null> {
+    const session = await this.loadSessionContainingTrace(traceId);
+    if (!session) return null;
+
+    return session.traces.find((trace) => trace.id === traceId) || null;
+  }
+
+  private async loadSessionContainingTrace(traceId: string): Promise<ContemplativeMemory | null> {
+    const sessions = await this.loadAllSessions();
+    return Object.values(sessions).find((session) => session.traces.some((trace) => trace.id === traceId)) || null;
   }
 }

@@ -6,6 +6,12 @@
 
 import { MeditationTrace } from "./types.js";
 import { extractFeedback, extractQuestions } from "./insights.js";
+import { StorageManager } from "./utils/storage";
+import { mockConfig } from "../src/__tests__/mockConfig";
+import { extractThemesFromNarrative } from "./utils/nlp";
+import { DreamWeaver } from "./utils/dreamWeaver";
+
+const mockStorage = new StorageManager(mockConfig);
 
 /**
  * Format meditation insights for a consult/critique prompt
@@ -210,5 +216,27 @@ export function buildConversationBridge(
     transitionReasoning,
     suggestedNextMode: modeSwitch.suggestedMode as "diverge" | "converge",
     nextSteps,
+  };
+}
+
+export async function handleExtendContext(
+  { sessionId, length = 10, seed }: { sessionId: string; length?: number; seed?: string },
+  storage: StorageManager,
+  dreamWeaver: typeof DreamWeaver
+): Promise<{ narrative: string; themes: string[]; message: string }> {
+  const session = await storage.loadSession(sessionId);
+  if (!session) {
+    throw new Error(`Session not found: ${sessionId}`);
+  }
+
+  const traces = session.traces || [];
+  const narrative = await dreamWeaver.weave(traces, length, seed);
+
+  const themes = extractThemesFromNarrative(narrative);
+
+  return {
+    narrative,
+    themes,
+    message: "Thematic narrative generated successfully."
   };
 }

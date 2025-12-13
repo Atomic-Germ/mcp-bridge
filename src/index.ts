@@ -63,6 +63,7 @@ import {
   createContextFromInsights,
 } from "./utils/creativeInsightIntegration.js";
 import { buildPairedMeditationPlan } from "./experiments/perpendicularBridge.js";
+import { extractThemesFromNarrative } from "./utils/nlp.js";
 
 // ============================================================================
 // Global State
@@ -293,13 +294,13 @@ function listTools(): Tool[] {
     {
       name: "bridge_get_insight_deepening",
       description:
-        "Analyze a meditation trace using creative_insight to extract deeper patterns and themes",
+        "Analyzes a meditation trace using creative_insight to extract deeper patterns, meta-themes, and philosophical implications. This tool is designed for reflection and meaning-making, surfacing connections that may be latent in the meditation cycle.",
       inputSchema: {
         type: "object",
         properties: {
           meditationTraceId: {
             type: "string",
-            description: "UUID of the meditation trace to analyze deeply",
+            description: "UUID of meditation trace",
           },
         },
         required: ["meditationTraceId"],
@@ -408,6 +409,28 @@ function listTools(): Tool[] {
         required: ["contextWords"],
       },
     },
+    {
+      name: "bridge_extend_context",
+      description: "Generate a thematic narrative connecting multiple meditation traces.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          sessionId: {
+            type: "string",
+            description: "Session ID to retrieve traces",
+          },
+          length: {
+            type: "number",
+            description: "Number of traces to include in the narrative",
+          },
+          seed: {
+            type: "string",
+            description: "Seed concept to guide the narrative",
+          },
+        },
+        required: ["sessionId"],
+      },
+    },
   ];
 }
 
@@ -477,9 +500,10 @@ async function handleLogMeditation(
     mode: "diverge",
     meditation: {
       contextWords: req.contextWords,
-      numRandomWords: req.numRandomWords || 12,
+     
       seed: req.seed,
       emergentSentence: req.emergentSentence,
+      numRandomWords: 12,
     },
     insights,
     bridge: {
@@ -842,74 +866,33 @@ async function handleBuildConceptMemory(
 }
 
 async function handleGetInsightDeepening(
-  req: GetInsightDeepeningRequest
-): Promise<GetInsightDeepeningResponse> {
-  if (!currentSessionId) {
-    throw new InvalidInputError("No active session. Call bridge_start_session first.");
+  req: { meditationTraceId: string }
+): Promise<{
+  traceId: string;
+  patterns: string[];
+  metaPatterns: string[];
+  focusAreas: string[];
+  narrative: string;
+  metaThemes: string[];
+  message: string;
+}> {
+  const { meditationTraceId } = req;
+  const trace = await storage.loadMeditationTrace(meditationTraceId);
+  if (!trace) {
+    throw new InvalidInputError(`Meditation trace not found: ${meditationTraceId}`);
   }
 
-  const trace = await storage.getTraceById(currentSessionId, req.meditationTraceId);
-  if (!trace || !trace.meditation) {
-    throw new InvalidInputError(`Meditation trace not found: ${req.meditationTraceId}`);
-  }
-
-  const emergentSentence = trace.meditation.emergentSentence;
-  const contextWords = trace.meditation.contextWords;
-
-  // Parse the meditation to extract deeper insights
-  // Since we can't directly call creative_insight from another MCP in this context,
-  // we'll use heuristic pattern extraction based on the meditation content
-  const deepInsight = parseInsightResponse(emergentSentence);
-
-  // Create context for next meditation
-  const nextContext = createContextFromInsights(deepInsight);
-
-  // Record patterns in concept memory
-  const conceptMemory = getConceptMemory();
-  for (const pattern of deepInsight.patterns) {
-    conceptMemory.recordConcept(
-      pattern.name,
-      currentSessionId,
-      `Identified in meditation: ${emergentSentence.substring(0, 50)}...`,
-      "creative-insight"
-    );
-  }
-
-  // Log this deepening as a special trace
-  const traceId = randomUUID();
-  const now = Date.now();
-
-  const insightTrace: MeditationTrace = {
-    id: traceId,
-    timestamp: now,
-    mode: "diverge",
-    insights: {
-      extractedPatterns: deepInsight.patterns.map((p) => p.name),
-      novelty: 0.8, // Deepening is always novel
-      semanticClusters: [
-        deepInsight.patterns.map((p) => p.name),
-        deepInsight.metaPatterns,
-        nextContext.contextWords,
-      ],
-      extractedAt: now,
-    },
-    bridge: {
-      transitionSuggested: false,
-      reasonForSwitch: "Deeper insight patterns extracted and recorded",
-      confidenceLevel: 0.85,
-    },
-  };
-
-  await storage.addTraceToSession(currentSessionId, insightTrace);
+  const narrative = await DreamWeaver.weave([trace], 1);
+  const metaThemes = extractThemesFromNarrative(narrative); // Reusing utility function
 
   return {
-    traceId,
-    patterns: deepInsight.patterns,
-    metaPatterns: deepInsight.metaPatterns,
-    focusAreas: deepInsight.focusAreas,
-    suggestedContextWords: nextContext.contextWords,
-    guidingQuestions: nextContext.guidingQuestions,
-    message: `Insight deepening complete. Found ${deepInsight.patterns.length} patterns and ${deepInsight.focusAreas.length} focus areas.`,
+    traceId: meditationTraceId,
+    patterns: trace.extractedPatterns || [],
+    metaPatterns: [], // Placeholder for future meta-pattern extraction logic
+    focusAreas: [], // Placeholder for focus areas
+    narrative,
+    metaThemes,
+    message: "Insight deepening complete with narrative and meta-themes.",
   };
 }
 
@@ -1461,6 +1444,16 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
         );
         break;
 
+      case "bridge_extend_context":
+        result = await handleExtendContext(
+          request.arguments as unknown as {
+            sessionId: string;
+            length?: number;
+            seed?: string;
+          }
+        );
+        break;
+
       default:
         throw new InvalidInputError(`Unknown tool: ${request.name}`);
     }
@@ -1511,6 +1504,34 @@ async function callToolHandler(params: CallToolRequest): Promise<any> {
     return {
       ...plan,
       message: `Planned paired meditations with ${plan.primary.contextWords.length} primary terms and ${plan.perpendicular.contextWords.length} perpendicular terms.`,
+    };
+  }
+
+  async function handleExtendContext(
+    req: {
+      sessionId: string;
+      length?: number;
+      seed?: string;
+    },
+    storageManager: StorageManager = storage // Default to global storage instance
+  ): Promise<{
+    narrative: string;
+    themes: string[];
+    message: string;
+  }> {
+    const sessionId = req.sessionId;
+    const session = await storageManager.loadSession(sessionId);
+    if (!session) {
+      throw new InvalidInputError(`Session not found: ${sessionId}`);
+    }
+
+    const narrative = await DreamWeaver.weave(session.traces, req.length, req.seed);
+    const themes = extractThemesFromNarrative(narrative);
+
+    return {
+      narrative,
+      themes,
+      message: "Thematic narrative generated successfully.",
     };
   }
 }
@@ -1589,3 +1610,6 @@ main().catch((error) => {
   console.error("[mcp-bridge] Fatal error:", error);
   process.exit(1);
 });
+
+export { bridge_get_insight_deepening } from "./insights";
+export { handleExtendContext } from "./contextInjection";

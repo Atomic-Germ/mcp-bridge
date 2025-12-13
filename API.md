@@ -529,13 +529,13 @@ const response = await callTool({
 
 ### bridge_get_insight_deepening
 
-Analyzes a meditation trace using creative_insight to extract deeper patterns, meta-themes, and philosophical implications. This tool is designed for reflection and meaning-making, surfacing connections that may be latent in the meditation cycle.
+Analyzes a meditation trace to extract deeper patterns, themes, and philosophical implications. Enhanced with `mcp-dream-weaver` to generate reflective narratives.
 
 **Input Schema:**
 
 ```typescript
 {
-  meditationTraceId: string;   // ✅ Required: UUID of meditation trace
+  meditationTraceId: string;  // UUID of the meditation trace to analyze deeply
 }
 ```
 
@@ -543,14 +543,17 @@ Analyzes a meditation trace using creative_insight to extract deeper patterns, m
 
 ```typescript
 {
-  content: [{
-    deepThemes: string[];         // Array of meta-level themes and patterns
-    philosophicalImplications: string[]; // Array of deeper questions or implications
-    summary: string;              // Narrative summary of the deepened insight
-    extractedAt: ISO8601;         // Timestamp
-  }]
+  deepThemes: string[];       // High-level themes derived from the meditation trace
+  philosophicalImplications: string[]; // Reflective questions and insights
+  narrative: string;          // Generated narrative summarizing the insights
+  metaThemes: string[];       // Overarching meta-level themes
 }
 ```
+
+**Behavior:**
+- Retrieves the meditation trace using `StorageManager.loadMeditationTrace`.
+- Uses `mcp-dream-weaver` to weave a narrative from the trace.
+- Extracts themes and philosophical implications from the narrative.
 
 **Example:**
 
@@ -558,17 +561,27 @@ Analyzes a meditation trace using creative_insight to extract deeper patterns, m
 const response = await callTool({
   name: "bridge_get_insight_deepening",
   arguments: {
-    meditationTraceId: "46ddada3-ef4b-4166-9850-f837e4f039c7"
+    meditationTraceId: "abc123"
   }
 });
-// Returns: deepThemes, philosophicalImplications, summary
+
+console.log(response);
+/* Example Output:
+{
+  deepThemes: ["Constraint and Freedom", "Emergence of Patterns"],
+  philosophicalImplications: [
+    "Does freedom require constraint to be meaningful?",
+    "Can complexity emerge from simple rules?"
+  ],
+  narrative: "In the interplay of constraint and freedom, patterns emerge...",
+  metaThemes: ["Dialectics of Creativity"]
+}
+*/
 ```
 
-**Behavior:**
-- Uses creative_insight to analyze the meditation trace
-- Surfaces meta-patterns, paradoxes, and philosophical questions
-- Provides a narrative summary for reflection
-- Performance: <100ms
+**State:**
+- Requires a valid meditation trace ID.
+- Persists generated insights and narratives for session continuity.
 
 Weaves meditation traces into a narrative "dream"—a coherent stream of consciousness connecting insights via semantic adjacency.
 

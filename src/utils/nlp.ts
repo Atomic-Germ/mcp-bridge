@@ -266,3 +266,15 @@ export function extractNounLikeConcepts(text: string): string[] {
     return hasNounEnding || word.length >= 7; // Longer words more likely nouns
   });
 }
+
+/**
+ * Extract themes from a narrative
+ * Placeholder implementation: Extract themes by splitting narrative into unique words
+ */
+export function extractThemesFromNarrative(narrative: string): string[] {
+  const words = narrative.split(/\s+/);
+  const uniqueWords = Array.from(new Set(words));
+
+  // Hypothetical logic to filter meaningful themes
+  return uniqueWords.filter((word) => word.length > 4); // Example: Only words longer than 4 characters
+}

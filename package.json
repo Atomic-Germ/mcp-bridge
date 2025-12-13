@@ -26,5 +26,9 @@
   },
   "keywords": ["mcp", "orchestration", "insight"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "vitest": {
+    "include": ["src/__tests__/**/*.test.ts"],
+    "exclude": ["**/node_modules/**", "**/dist/**"]
+  }
 }

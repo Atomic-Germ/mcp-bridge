@@ -11,6 +11,10 @@ import {
 } from "../contextInjection.js";
 import { suggestModeSwitch } from "../modeSwitch.js";
 import { MeditationTrace, ContemplativeMemory } from "../types.js";
+import { mockConfig } from "./mockConfig";
+import { StorageManager } from "../utils/storage";
+
+const mockStorage = new StorageManager(mockConfig);
 
 describe("M4 Integration: Bridge with Creative + Consult", () => {
   const sampleMeditationTrace: MeditationTrace = {

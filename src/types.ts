@@ -51,6 +51,9 @@ export interface MeditationTrace {
 
   // Bridge-specific metadata
   bridge: BridgeMetadata;
+
+  // Added optional property for extracted patterns
+  extractedPatterns?: string[];
 }
 
 export interface SessionMetrics {

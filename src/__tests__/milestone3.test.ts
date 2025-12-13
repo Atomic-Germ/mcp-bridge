@@ -9,6 +9,10 @@ import {
   buildConversationBridge,
 } from "../contextInjection.js";
 import { MeditationTrace } from "../types.js";
+import { mockConfig } from "./mockConfig";
+import { StorageManager } from "../utils/storage";
+
+const mockStorage = new StorageManager(mockConfig);
 
 describe("Milestone 3: Context Injection", () => {
   const testMeditationTrace: MeditationTrace = {
