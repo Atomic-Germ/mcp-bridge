@@ -69,8 +69,8 @@ SwitchSuggestion = {
 | Tool | Input | Output | Why |
 |------|-------|--------|-----|
 | `bridge_start_session()` | none | `{sessionId, time}` | Begin logging |
-| `bridge_log_meditation(text, words)` | meditation output | `Trace + insights` | Log + extract concepts |
-| `bridge_log_consult(model, prompt, response)` | critique output | `Trace + feedback` | Log + relevance score |
+| `bridge_log_meditation({emergentSentence, contextWords} \| {meditationText} \| {mcpResult})` | meditation output | `Trace + insights` | Log + extract concepts |
+| `bridge_log_consult({model, prompt, response?} \| {consultText} \| {mcpResult})` | critique output | `Trace + feedback` | Log + relevance score |
 | `bridge_suggest_mode_switch()` | none (uses memory) | `SwitchSuggestion` | Get advice + confidence |
 | `bridge_get_context_for_consult(id)` | meditation trace | `formatted_prompt` | Inject insights into consult |
 | `bridge_get_critique_for_meditation(id)` | consult trace | `context_words` | Inject feedback into meditation |

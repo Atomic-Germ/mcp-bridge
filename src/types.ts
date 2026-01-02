@@ -111,10 +111,17 @@ export interface StartSessionResponse {
 
 // Tool 2: bridge_log_meditation
 export interface LogMeditationRequest {
-  emergentSentence: string;
-  contextWords: string[];
+  /** Preferred structured form (matches bridge_log_meditation schema) */
+  emergentSentence?: string;
+  contextWords?: string[];
   numRandomWords?: number;
   seed?: string;
+
+  /** Convenience interop: raw text (e.g., from mcp-creative creative_meditate) */
+  meditationText?: string;
+
+  /** Convenience interop: raw MCP tool result object */
+  mcpResult?: unknown;
 }
 
 export interface LogMeditationResponse {
@@ -127,9 +134,16 @@ export interface LogMeditationResponse {
 export interface LogConsultRequest {
   model: string;
   prompt: string;
-  response: string;
+  /** Preferred structured form */
+  response?: string;
   systemPrompt?: string;
   relevanceOverride?: number; // User can override computed relevance (0-1)
+
+  /** Convenience interop: raw text (e.g., from mcp-consult consult_ollama) */
+  consultText?: string;
+
+  /** Convenience interop: raw MCP tool result object */
+  mcpResult?: unknown;
 }
 
 export interface LogConsultResponse {

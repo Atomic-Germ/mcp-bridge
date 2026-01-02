@@ -43,6 +43,10 @@ import {
   formatContextForMeditation,
   buildConversationBridge,
 } from "./contextInjection.js";
+import {
+  extractTextFromMcpResult,
+  parseCreativeMeditationText,
+} from "./utils/mcp.js";
 
 /** ============================================================================
 // Global State
@@ -91,8 +95,18 @@ function listTools(): Tool[] {
             type: "string",
             description: "Optional seed for reproducibility",
           },
+          meditationText: {
+            type: "string",
+            description:
+              "Optional raw meditation text (e.g. mcp-creative creative_meditate text output). If provided, bridge will attempt to parse emergent sentence and context words.",
+          },
+          mcpResult: {
+            type: "object",
+            description:
+              "Optional raw MCP tool result object (e.g. { content: [{type:'text', text: ...}] }). If provided, bridge will attempt to extract text and parse it.",
+          },
         },
-        required: ["emergentSentence", "contextWords"],
+        required: [],
       },
     },
     {
@@ -123,8 +137,18 @@ function listTools(): Tool[] {
             description:
               "Optional: Override the computed relevance score (0-1). Use this if the bridge's NLP scoring disagrees with your intuition.",
           },
+          consultText: {
+            type: "string",
+            description:
+              "Optional raw consult text (e.g. mcp-consult consult_ollama text output). Used if response is omitted.",
+          },
+          mcpResult: {
+            type: "object",
+            description:
+              "Optional raw MCP tool result object. Bridge will attempt to extract response text if response is omitted.",
+          },
         },
-        required: ["model", "prompt", "response"],
+        required: ["model", "prompt"],
       },
     },
     {
@@ -238,9 +262,25 @@ async function handleLogMeditation(
     throw new InvalidInputError("No active session. Call bridge_start_session first.");
   }
 
-  if (!req.emergentSentence || !req.contextWords) {
+  let emergentSentence = req.emergentSentence;
+  let contextWords = req.contextWords;
+  let numRandomWords = req.numRandomWords;
+
+  if (!emergentSentence || !contextWords) {
+    const rawText =
+      (typeof req.meditationText === "string" && req.meditationText) ||
+      extractTextFromMcpResult(req.mcpResult);
+    if (rawText) {
+      const parsed = parseCreativeMeditationText(rawText);
+      emergentSentence = emergentSentence || parsed.emergentSentence;
+      contextWords = contextWords || parsed.contextWords;
+      numRandomWords = numRandomWords ?? parsed.numRandomWords;
+    }
+  }
+
+  if (!emergentSentence || !contextWords) {
     throw new InvalidInputError(
-      "emergentSentence and contextWords are required"
+      "Provide emergentSentence + contextWords, or meditationText/mcpResult that can be parsed."
     );
   }
 
@@ -254,17 +294,17 @@ async function handleLogMeditation(
   }
 
   // Extract insights from the meditation text
-  const insights = extractInsights(req.emergentSentence, session);
+  const insights = extractInsights(emergentSentence, session);
 
   const trace: MeditationTrace = {
     id: traceId,
     timestamp: now,
     mode: "diverge",
     meditation: {
-      contextWords: req.contextWords,
-      numRandomWords: req.numRandomWords || 12,
+      contextWords,
+      numRandomWords: numRandomWords || 12,
       seed: req.seed,
-      emergentSentence: req.emergentSentence,
+      emergentSentence,
     },
     insights,
     bridge: {
@@ -288,15 +328,26 @@ async function handleLogConsult(
     throw new InvalidInputError("No active session. Call bridge_start_session first.");
   }
 
-  if (!req.model || !req.prompt || !req.response) {
-    throw new InvalidInputError("model, prompt, and response are required");
+  if (!req.model || !req.prompt) {
+    throw new InvalidInputError("model and prompt are required");
+  }
+
+  const responseText =
+    (typeof req.response === "string" && req.response) ||
+    (typeof req.consultText === "string" && req.consultText) ||
+    extractTextFromMcpResult(req.mcpResult);
+
+  if (!responseText) {
+    throw new InvalidInputError(
+      "Provide response, or consultText/mcpResult from which response can be extracted."
+    );
   }
 
   const traceId = randomUUID();
   const now = Date.now();
 
   // Extract feedback from the consult response
-  const extractedFeedback = extractFeedback(req.response);
+  const extractedFeedback = extractFeedback(responseText);
 
   // Determine relevance score: use override if provided, otherwise compute
   let relevanceScore = 0.5; // Default neutral
@@ -319,7 +370,7 @@ async function handleLogConsult(
       if (lastMeditation?.insights) {
         relevanceScore = scoreRelevance(
           lastMeditation.insights.extractedPatterns,
-          req.response
+          responseText
         );
       }
     }
@@ -333,7 +384,7 @@ async function handleLogConsult(
       consultModel: req.model,
       prompt: req.prompt,
       systemPrompt: req.systemPrompt,
-      response: req.response,
+      response: responseText,
       relevance: relevanceScore,
     },
     bridge: {

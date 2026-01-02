@@ -327,7 +327,7 @@ User Input:
 mcp-creative returns emergent sentence & interpretation
     ↓
 Bridge intercepts (via logging wrapper):
-  bridge_log_meditation({emergentSentence, contextWords})
+  bridge_log_meditation({emergentSentence, contextWords}) // or {meditationText} / {mcpResult}
     ├─ Extract concepts: ["constraint", "freedom", "paradox"]
     ├─ Compute novelty: 0.72 (pretty new idea)
     ├─ Create Trace + store
@@ -345,7 +345,7 @@ User decides to consult:
   )
     ↓
 Bridge intercepts:
-  bridge_log_consult({model, prompt, response, systemPrompt})
+  bridge_log_consult({model, prompt, response, systemPrompt}) // or {consultText} / {mcpResult}
     ├─ Score relevance of critique to original ideas
     ├─ Extract actionable feedback
     └─ Store for potential re-injection into next meditation
